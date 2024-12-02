@@ -77,27 +77,27 @@ fi
   de=${de:-0}
   #SERVER
   if [ "${de,,}" = "0" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub openssh 
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh 
   fi
   #KDE
   if [ "${de,,}" = "1" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub openssh plasma-meta sddm konsole
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh plasma-meta sddm konsole
   fi
   #GNOME
   if [ "${de,,}" = "2" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub openssh gnome gdm gnome-terminal
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh gnome gdm gnome-terminal
   fi
   #LXDE
   if [ "${de,,}" = "3" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub openssh lxde gdm lxterminal
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh lxde gdm lxterminal
   fi
   #MATE
   if [ "${de,,}" = "4" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub openssh mate gdm mate-terminal
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh mate gdm mate-terminal
   fi
   #XFCE
   if [ "${de,,}" = "5" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub openssh xfce4 lightdm xfce4-terminal
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh xfce4 lightdm xfce4-terminal
   fi
   
   echo "Generating fstab"
