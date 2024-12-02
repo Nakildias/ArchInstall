@@ -91,9 +91,9 @@
   echo "oh-my-bash installed for user root"
   echo "copying root config to $username"
   cp -rf ~/.* /home/$username/
-  chmod +rwx /home/$username/*
+  #chmod +rwx /home/$username/* useless
   chmod +rwx /home/$username/.*
-  sed -i 8s/.*/export OSH='/home/$username/.oh-my-bash'/ /home/$username/.bashrc
+  sed -i 8s/.*/export\ OSH='/home/$username/.oh-my-bash'/ /home/$username/.bashrc
   echo "More bash themes can be found at default for this install is [lamba]"
   echo "https://github.com/ohmybash/oh-my-bash/tree/master/themes"
   echo "Theme config is located at ~/.bashrc line #12"
