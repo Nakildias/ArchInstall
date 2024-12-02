@@ -90,7 +90,6 @@
   sed -i 12s/.*/OSH_THEME="lambda"/ ~/.bashrc
   echo "oh-my-bash installed for user root"
   echo "copying root config to $username"
-  mkdir /home/nakildias
   cp -rf ~/.* /home/$username/
   chmod +rwx /home/$username/*
   chmod +rwx /home/$username/.*
