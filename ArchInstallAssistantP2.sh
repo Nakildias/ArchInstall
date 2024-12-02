@@ -84,6 +84,15 @@
   fi
   fi
   
+  read -p "Install oh-my-bash? [y/n] : " omb
+  if [ "${omb,,}" = "y" ]; then
+  bash -c "$(wget https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh -O -)"
+  sed -i 12s/.*/OSH_THEME="lambda"/ ~/.bashrc
+  echo "More bash themes can be found at default for this install is [lamba]"
+  echo "https://github.com/ohmybash/oh-my-bash/tree/master/themes"
+  echo "Theme config is located at ~/.bashrc line #12"
+  fi
+  
   echo "Installing Grub to /boot"
   grub-install --efi-directory=/boot
   echo "Configuring Grub /boot/grub/grub.cfg"
