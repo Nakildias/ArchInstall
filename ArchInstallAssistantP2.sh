@@ -88,6 +88,10 @@
   if [ "${omb,,}" = "y" ]; then
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)" --unattended
   sed -i 12s/.*/OSH_THEME="lambda"/ ~/.bashrc
+  echo "oh-my-bash installed for user root"
+  echo "copying root config to $username"
+  mkdir /home/nakildias
+  cp ~/.* /home/$username/
   echo "More bash themes can be found at default for this install is [lamba]"
   echo "https://github.com/ohmybash/oh-my-bash/tree/master/themes"
   echo "Theme config is located at ~/.bashrc line #12"
