@@ -81,7 +81,7 @@ fi
   fi
   #KDE
   if [ "${de,,}" = "1" ]; then
-  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh plasma-meta sddm konsole
+  pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh plasma-meta sddm konsole dolphin
   fi
   #GNOME
   if [ "${de,,}" = "2" ]; then
