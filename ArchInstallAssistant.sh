@@ -102,8 +102,9 @@ fi
   
   echo "Generating fstab"
   genfstab /mnt >> /mnt/etc/fstab
-  echo "Download Part 2 of Script.."
+  echo "Moving required files to Arch-Chroot.."
   mv ./ArchInstallAssistantP2.sh /mnt/ArchInstallAssistantP2.sh
+  mv ./archinstall_default.theme.sh /mnt/archinstall_default.theme.sh
   echo "After chrooting you will need to bash into part 2"
   echo "Location = /ArchInstallAssistantPart2.sh"
   read -p "Press ENTER to continue"
