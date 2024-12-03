@@ -44,10 +44,48 @@ fi
   swapon /dev/$Partition_Swap
   echo "Mounting Completed"
   echo "Pacstraping..."
+
+  
+# read -p "Enable Parallel Downloads for pacstrap? y/n = " Parallel old
+# if [ "${Parallel,,}" = "y" ]; then old
+
+  while true; do
   read -p "Enable Parallel Downloads for pacstrap? y/n = " Parallel
-  if [ "${Parallel,,}" = "y" ]; then
+  case "${Parallel,,}" in
+        y)
+            echo "Parallel Downloads enabled."
+            break
+            ;;
+        n)
+            echo "Parallel Downloads not enabled."
+            break
+            ;;
+        *)
+            echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+            ;;
+   esac
+   done
+
+
+  
+#  read -p "How many download threads? 1-10 (default = 5) = " Parallel_Value
+#  Parallel_Value=${Parallel_Value:-5}
+
+  while true; do
   read -p "How many download threads? 1-10 (default = 5) = " Parallel_Value
   Parallel_Value=${Parallel_Value:-5}
+
+   # Check if input is a valid number between 1 and 10
+  if [[ "$Parallel_Value" =~ ^[0-9]+$ ]] && ((Parallel_Value >= 1 && Parallel_Value <= 10)); then
+    break
+  else
+    echo "Error: Please enter a number between 1 and 10."
+  fi
+  done
+
+  echo "You chose $Parallel_Value download threads."
+
+  
   sed -i 37s/.*/ParallelDownloads\ =\ $Parallel_Value/ /etc/pacman.conf
   fi
   
