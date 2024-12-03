@@ -111,10 +111,10 @@
 
   read -p "Change Grub Theme? [y/n] : " gt
   if [ "${gt,,}" = "y" ]; then
-  git clone https://github.com/thesacredsin/grub_themes
-  cd grub_themes
+  git clone https://github.com/RomjanHossain/Grub-Themes.git
+  cd Grub-Themes
   sudo ./install.sh
-  #Credits to ChrisTitus & thesacredsin for the grub theme script"
+  #Credits to RomjanHossain
   fi
   
   echo "Almost done please follow the next instruction"
