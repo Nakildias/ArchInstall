@@ -93,6 +93,7 @@
   cp -rf ~/.* /home/$username/
   mkdir /home/$username/.oh-my-bash/themes/archinstall_default
   cp ./archinstall_default.theme.sh /home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  mkdir /root/.oh-my-bash/themes/archinstall_default
   mv ./archinstall_default.theme.sh /root/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
   chmod +rwx /home/$username/.*
   sed -i "8c export OSH='/home/$username/.oh-my-bash'" /home/$username/.bashrc
