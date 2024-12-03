@@ -29,7 +29,7 @@
   echo "3#Root Partition with what is remaining."
   sleep 1
   echo "When done do [write] first and then [quit] in cfdisk"
-  echp "If you mess up here please restart this script"
+  echo "If you mess up here please restart this script"
   echo "|--------------------------------------------------------|"
   echo "|!!WARNING!! PARTITION THOSE IN CORRECT ORDER !!WARNING!!|"
   echo "|--------------------------------------------------------|"
