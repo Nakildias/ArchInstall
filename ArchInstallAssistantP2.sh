@@ -87,13 +87,15 @@
   read -p "Install oh-my-bash? [y/n] : " omb
   if [ "${omb,,}" = "y" ]; then
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)" --unattended
-  sed -i 12s/.*/OSH_THEME="lambda"/ ~/.bashrc
+  sed -i 12s/.*/OSH_THEME="archinstall_default"/ ~/.bashrc
   echo "oh-my-bash installed for user root"
   echo "copying root config to $username"
   cp -rf ~/.* /home/$username/
-  #chmod +rwx /home/$username/* useless
+  mkdir /home/$username/.oh-my-bash/themes/archinstall_default
+  mv ./archinstall_default.theme.sh /home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
   chmod +rwx /home/$username/.*
   sed -i "8c export OSH='/home/$username/.oh-my-bash'" /home/$username/.bashrc
+  echo "oh-my-bash set to use archinstall_default theme"
   echo "More bash themes can be found at default for this install is [lamba]"
   echo "https://github.com/ohmybash/oh-my-bash/tree/master/themes"
   echo "Theme config is located at ~/.bashrc line #12"
