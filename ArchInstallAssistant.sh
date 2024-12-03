@@ -40,7 +40,9 @@
   Partition_Swap=${Partition_Swap:-$disk\2}
   Partition_Root=${Partition_Root:-$disk\3}
   fdisk -l
+  echo ""
   echo "$Partition_Boot (BOOT) | $Partition_Swap (SWAP) | $Partition_Root (ROOT)"
+  echo ""
   echo "Partitions above will be formated to their required filesystem."
   read -p "Press ENTER if everything seems OK"
   mkfs.fat -F 32 /dev/$Partition_Boot
