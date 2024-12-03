@@ -70,7 +70,7 @@ fi
   
 #  read -p "How many download threads? 1-10 (default = 5) = " Parallel_Value
 #  Parallel_Value=${Parallel_Value:-5}
-
+  if [ "${Parallel,,}" = "y" ]; then
   while true; do
   read -p "How many download threads? 1-10 (default = 5) = " Parallel_Value
   Parallel_Value=${Parallel_Value:-5}
