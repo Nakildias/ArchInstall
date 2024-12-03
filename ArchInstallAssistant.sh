@@ -21,24 +21,28 @@
   read -p "Disk = " disk
   echo "You will now be taken to the disk partitioner."
   echo "You will need to make 3 partitions"
-  echo "Boot Parition of 1GB,"
-  echo "Swap Partition of 4GB or more,"
-  echo "Root Partition with what is remaining."
+  echo "1#Boot Parition of 1GB,"
+  echo "2#Swap Partition of 4GB or more,"
+  echo "3#Root Partition with what is remaining."
+  echo "!!PARTITION THOSE IN CORRECT ORDER!!"
   read -p "Press ENTER to continue"
   sudo cfdisk /dev/$disk
   clear
+  Partition_Boot=${Partition_Boot:-$disk\1}
+  Partition_Swap=${Partition_Swap:-$disk\2}
+  Partition_Root=${Partition_Root:-$disk\3}
+  #echo "Please enter the correct partition name for each partitions"
+  #echo "Example"
+  #echo "Boot Partition = vda1"
+  #echo "Swap Partition = vda2"
+  #echo "Root Partition = vda3"
+  #read -p "Boot Partition : " Partition_Boot
+  #read -p "Swap Partition : " Partition_Swap
+  #read -p "Root Partition : " Partition_Root
   fdisk -l
-  echo "Please enter the correct partition name for each partitions"
-  echo "Example"
-  echo "Boot Partition = vda1"
-  echo "Swap Partition = vda2"
-  echo "Root Partition = vda3"
-  read -p "Boot Partition : " Partition_Boot
-  read -p "Swap Partition : " Partition_Swap
-  read -p "Root Partition : " Partition_Root
-  clear
-  echo "$Partition_Boot, $Partition_Swap & $Partition_Root will be formated to their required filesystem."
-  read -p "Press ENTER to continue"
+  echo "$Partition_Boot (BOOT) | $Partition_Swap (SWAP) | $Partition_Root (ROOT)"
+  echo "Partitions above will be formated to their required filesystem."
+  read -p "Press ENTER if everything seems OK"
   mkfs.fat -F 32 /dev/$Partition_Boot
   mkswap /dev/$Partition_Swap
   mkfs.ext4 /dev/$Partition_Root
