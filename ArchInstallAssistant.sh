@@ -66,6 +66,17 @@ fi
   video_driver=${video_driver:-}
   fi
   
+  #echo "Choose your Desktop Environment"
+  #echo "0) Server [Tested]"
+  #echo "1) KDE Plasma [Tested]"
+  #echo "2) Gnome [Tested]"
+  #echo "3) LXDE [Unknown]"
+  #echo "4) Mate [Unknown]"
+  #echo "5) XFCE [Unknown]"
+  #read -p "Desktop Environment [0-5] = " de
+  #de=${de:-0}
+
+
   echo "Choose your Desktop Environment"
   echo "0) Server [Tested]"
   echo "1) KDE Plasma [Tested]"
@@ -73,8 +84,18 @@ fi
   echo "3) LXDE [Unknown]"
   echo "4) Mate [Unknown]"
   echo "5) XFCE [Unknown]"
+
+  while true; do
   read -p "Desktop Environment [0-5] = " de
-  de=${de:-0}
+  de=${de:-0} # Default to 0 if no input
+  if [[ "$de" =~ ^[0-5]$ ]]; then
+    echo "You selected option $de."
+    break
+  else
+    echo "Invalid input. Please enter a number between 0 and 5."
+  fi
+  done
+  
   #SERVER
   if [ "${de,,}" = "0" ]; then
   pacstrap -K /mnt base $kernel $video_driver mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh reflector
