@@ -92,7 +92,8 @@
   echo "copying root config to $username"
   cp -rf ~/.* /home/$username/
   mkdir /home/$username/.oh-my-bash/themes/archinstall_default
-  mv ./archinstall_default.theme.sh /home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  cp ./archinstall_default.theme.sh /home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  mv ./archinstall_default.theme.sh /root/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
   chmod +rwx /home/$username/.*
   sed -i "8c export OSH='/home/$username/.oh-my-bash'" /home/$username/.bashrc
   echo "oh-my-bash set to use archinstall_default theme"
