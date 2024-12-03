@@ -51,9 +51,26 @@ fi
   sed -i 37s/.*/ParallelDownloads\ =\ $Parallel_Value/ /etc/pacman.conf
   fi
   
-  echo "Choose your kernel ex: linux, linux-zen"
-  read -p "Kernel (default = linux) = " kernel
-  kernel=${kernel:-linux}
+#  echo "Choose your kernel ex: linux, linux-zen" old
+#  read -p "Kernel (default = linux) = " kernel old 
+#  kernel=${kernel:-linux} old
+
+  while true; do
+  echo "Choose your kernel (valid options: linux, linux-lts, linux-zen)"
+  read -p "Kernel (default = linux): " kernel
+  kernel=${kernel:-linux} # Default to "linux" if input is empty
+  
+  case $kernel in
+    linux|linux-lts|linux-zen)
+      echo "Selected kernel: $kernel"
+      break
+      ;;
+    *)
+      echo "Invalid choice: '$kernel'. Please try again."
+      ;;
+  esac
+  done
+
   
   
   echo "NVIDIA?"
