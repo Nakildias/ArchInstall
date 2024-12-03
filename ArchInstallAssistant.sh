@@ -19,26 +19,26 @@
   echo "Example if you get [Disk /dev/vda: 64 GiB], then write vda"
   echo "Example if you get [Disk /dev/sda: 128 GiB], then write sda"
   read -p "Disk = " disk
-  echo "You will now be taken to the disk partitioner."
+  clear
   echo "You will need to make 3 partitions"
-  echo "1#Boot Parition of 1GB,"
-  echo "2#Swap Partition of 4GB or more,"
+  sleep 1
+  echo "1#Boot Parition of 1G or >"
+  sleep 1
+  echo "2#Swap Partition of 4G or >"
+  sleep 1
   echo "3#Root Partition with what is remaining."
-  echo "!!PARTITION THOSE IN CORRECT ORDER!!"
-  read -p "Press ENTER to continue"
+  sleep 1
+  echo "When done do [write] first and then [quit] in cfdisk"
+  echp "If you mess up here please restart this script"
+  echo "|--------------------------------------------------------|"
+  echo "|!!WARNING!! PARTITION THOSE IN CORRECT ORDER !!WARNING!!|"
+  echo "|--------------------------------------------------------|"
+  read -p "Press ENTER to get in cfdisk"
   sudo cfdisk /dev/$disk
   clear
   Partition_Boot=${Partition_Boot:-$disk\1}
   Partition_Swap=${Partition_Swap:-$disk\2}
   Partition_Root=${Partition_Root:-$disk\3}
-  #echo "Please enter the correct partition name for each partitions"
-  #echo "Example"
-  #echo "Boot Partition = vda1"
-  #echo "Swap Partition = vda2"
-  #echo "Root Partition = vda3"
-  #read -p "Boot Partition : " Partition_Boot
-  #read -p "Swap Partition : " Partition_Swap
-  #read -p "Root Partition : " Partition_Root
   fdisk -l
   echo "$Partition_Boot (BOOT) | $Partition_Swap (SWAP) | $Partition_Root (ROOT)"
   echo "Partitions above will be formated to their required filesystem."
