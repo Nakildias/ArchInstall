@@ -1,6 +1,6 @@
 #!/bin/bash
   clear
-  echo "Welcome to Arch Install Assistant (Part 2/2)"
+  echo "Welcome to Arch Install Assistant (Part 2/3)"
   sleep 1
   echo "Setting up Time Zone"
   echo "Enter Region"
