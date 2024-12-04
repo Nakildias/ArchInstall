@@ -15,13 +15,35 @@
   read -p "Press ENTER to continue"
   clear
   fdisk -l
-  echo "Input the disk you want to use to install Arch Linux"
-  echo "Example if you get [Disk /dev/vda: 64 GiB], then write vda"
-  echo "Example if you get [Disk /dev/sda: 128 GiB], then write sda"
-  echo "yours might be the one below but it's unsure"
-  fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3
+  #echo "Input the disk you want to use to install Arch Linux"
+  #echo "Example if you get [Disk /dev/vda: 64 GiB], then write vda"
+  #echo "Example if you get [Disk /dev/sda: 128 GiB], then write sda"
+  #echo "yours might be the one below but it's unsure"
+  #fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3
+  #read -p "Disk = " disk
+  #clear
+# Retrieve a list of valid disks
+valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3))
+
+# Check if any disks are available
+if [ ${#valid_disks[@]} -eq 0 ]; then
+  echo "No valid disks found. Exiting."
+  exit 1
+fi
+
+# Display available disks
+echo "Available disks: ${valid_disks[@]}"
+
+# Loop to get a valid disk input
+while true; do
   read -p "Disk = " disk
-  clear
+  if [[ " ${valid_disks[@]} " =~ " ${disk} " ]]; then
+    echo "You selected a valid disk: $disk"
+    break
+  else
+    echo "Invalid disk. Please try again."
+  fi
+done
   echo "You will need to make 3 partitions"
   sleep 1
   echo "1#Boot Parition of 1G or >"
