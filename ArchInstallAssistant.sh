@@ -18,6 +18,8 @@
   echo "Input the disk you want to use to install Arch Linux"
   echo "Example if you get [Disk /dev/vda: 64 GiB], then write vda"
   echo "Example if you get [Disk /dev/sda: 128 GiB], then write sda"
+  echo "yours might be the one below but it's unsure"
+  fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3
   read -p "Disk = " disk
   clear
   echo "You will need to make 3 partitions"
