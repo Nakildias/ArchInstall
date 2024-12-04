@@ -51,7 +51,7 @@
   #read -p "Press ENTER to get in cfdisk"
   #sudo cfdisk /dev/$disk
 ################################################ Testing
-  # Retrieve a list of valid disks
+# Retrieve a list of valid disks
 valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3))
 
 # Check if any disks are available
@@ -85,10 +85,15 @@ while true; do
   fi
 done
 
+# Wipe the existing partition table
+echo "Wiping existing partitions on /dev/$disk..."
+(
+echo g # Create a new GPT partition table (destroys all partitions)
+) | fdisk /dev/$disk
+
 # Partition the disk
 echo "Partitioning /dev/$disk..."
 (
-echo g # Create a new GPT partition table
 echo n # New partition
 echo 1 # Partition number 1
 echo   # Default - start at beginning of disk
