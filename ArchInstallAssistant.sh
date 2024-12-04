@@ -74,6 +74,27 @@ while true; do
   fi
 done
 
+# Confirm the user wants to erase the disk
+read -p "Warning: This will erase all data on /dev/$disk. Are you sure? (yes/no): " confirmation
+if [[ "$confirmation" != "yes" ]]; then
+  echo "Operation canceled."
+  exit 1
+fi
+
+# Check for existing partitions and delete them
+echo "Checking for existing partitions on /dev/$disk..."
+partitions=($(lsblk -np | grep "/dev/$disk" | awk '{print $1}'))
+if [ ${#partitions[@]} -gt 0 ]; then
+  echo "Found partitions: ${partitions[@]}"
+  for part in "${partitions[@]}"; do
+    echo "Deleting partition $part..."
+    parted /dev/$disk rm $(echo $part | grep -o '[0-9]*$')
+  done
+  echo "All existing partitions deleted."
+else
+  echo "No existing partitions found on /dev/$disk."
+fi
+
 # Ask for the swap size
 while true; do
   read -p "Enter Swap Size (e.g., 2G, 512M): " SwapSize
@@ -85,15 +106,10 @@ while true; do
   fi
 done
 
-# Wipe the existing partition table
-echo "Wiping existing partitions on /dev/$disk..."
-(
-echo g # Create a new GPT partition table (destroys all partitions)
-) | fdisk /dev/$disk
-
 # Partition the disk
 echo "Partitioning /dev/$disk..."
 (
+echo g # Create a new GPT partition table
 echo n # New partition
 echo 1 # Partition number 1
 echo   # Default - start at beginning of disk
