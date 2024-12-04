@@ -116,9 +116,8 @@
   bash ./install.sh
   #Credits to RomjanHossain
   fi
-  
-  echo "You will now be kicked from Arch-Chroot"
-  echo "To complete the install bash into ArchInstallAssistantP3"
-  sleep 3
-  exit
+  clear
+  echo "___________________________________________________________________"
+  echo "             \/ \/ \/ \/ DO THIS RIGHT NOW \/ \/ \/"
+  echo "Input [exit] to continue & then input bash ./ArchInstallAssistantP3"
 # Written by Nakildias
