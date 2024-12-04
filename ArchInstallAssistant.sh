@@ -1,6 +1,6 @@
 #!/bin/bash
   clear
-  echo "Welcome to Arch Install Assistant (Part 1/2)"
+  echo "Welcome to Arch Install Assistant (Part 1/3)"
   echo "Checking EFI"
   if [ ! -e "/sys/firmware/efi/fw_platform_size" ]; then
   echo "EFI firmware not available"
