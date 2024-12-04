@@ -87,8 +87,9 @@ partitions=($(lsblk -np | grep "/dev/$disk" | awk '{print $1}'))
 if [ ${#partitions[@]} -gt 0 ]; then
   echo "Found partitions: ${partitions[@]}"
   for part in "${partitions[@]}"; do
-    echo "Deleting partition $part..."
-    parted /dev/$disk rm $(echo $part | grep -o '[0-9]*$')
+    part_number=$(echo $part | grep -o '[0-9]*$')
+    echo "Deleting partition $part (Partition number: $part_number)..."
+    parted -s /dev/$disk rm $part_number
   done
   echo "All existing partitions deleted."
 else
