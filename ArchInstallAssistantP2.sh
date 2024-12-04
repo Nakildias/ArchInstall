@@ -117,6 +117,8 @@
   #Credits to RomjanHossain
   fi
   
-  echo "Almost done please follow the next instruction"
-  echo "Enter [exit] to leave chroot and then shutdown using [shutdown now]"
+  echo "You will now be kicked from Arch-Chroot"
+  echo "To complete the install bash into ArchInstallAssistantP3"
+  sleep 3
+  exit
 # Written by Nakildias
