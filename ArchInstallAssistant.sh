@@ -14,15 +14,44 @@
   echo "IF YOU MESS SOMETHING UP HERE RESTART THE SCRIPT"
   read -p "Press ENTER to continue"
   clear
-  fdisk -l
-  #echo "Input the disk you want to use to install Arch Linux"
-  #echo "Example if you get [Disk /dev/vda: 64 GiB], then write vda"
-  #echo "Example if you get [Disk /dev/sda: 128 GiB], then write sda"
-  #echo "yours might be the one below but it's unsure"
-  #fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3
+  # Retrieve a list of valid disks
+  valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3))
+  # Check if any disks are available
+  if [ ${#valid_disks[@]} -eq 0 ]; then
+  echo "No valid disks found. Exiting."
+  exit 1
+  fi
+  # Display available disks
+  #echo "Available disks: ${valid_disks[@]}"
+  # Loop to get a valid disk input
+  #while true; do
   #read -p "Disk = " disk
+  #if [[ " ${valid_disks[@]} " =~ " ${disk} " ]]; then
+  #echo "You selected a valid disk: $disk"
+  #break
+  #else
+  #echo "Invalid disk. Please try choose a valid disk."
   #clear
-# Retrieve a list of valid disks
+  #echo "Available disks: ${valid_disks[@]}"
+  #fi
+  #done
+  #echo "You will need to make 3 partitions"
+  #sleep 1
+  #echo "1#Boot Parition of 1G or >"
+  #sleep 1
+  #echo "2#Swap Partition of 4G or >"
+  #sleep 1
+  #echo "3#Root Partition with what is remaining."
+  #sleep 1
+  #echo "When done do [write] first and then [quit] in cfdisk"
+  #echo "If you mess up here please restart this script"
+  #echo "|--------------------------------------------------------|"
+  #echo "|!!WARNING!! PARTITION THOSE IN CORRECT ORDER !!WARNING!!|"
+  #echo "|--------------------------------------------------------|"
+  #read -p "Press ENTER to get in cfdisk"
+  #sudo cfdisk /dev/$disk
+################################################ Testing
+  # Retrieve a list of valid disks
 valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3))
 
 # Check if any disks are available
@@ -44,21 +73,44 @@ while true; do
     echo "Invalid disk. Please try again."
   fi
 done
-  echo "You will need to make 3 partitions"
-  sleep 1
-  echo "1#Boot Parition of 1G or >"
-  sleep 1
-  echo "2#Swap Partition of 4G or >"
-  sleep 1
-  echo "3#Root Partition with what is remaining."
-  sleep 1
-  echo "When done do [write] first and then [quit] in cfdisk"
-  echo "If you mess up here please restart this script"
-  echo "|--------------------------------------------------------|"
-  echo "|!!WARNING!! PARTITION THOSE IN CORRECT ORDER !!WARNING!!|"
-  echo "|--------------------------------------------------------|"
-  read -p "Press ENTER to get in cfdisk"
-  sudo cfdisk /dev/$disk
+
+# Ask for the swap size
+while true; do
+  read -p "Enter Swap Size (e.g., 2G, 512M): " SwapSize
+  if [[ $SwapSize =~ ^[0-9]+[MG]$ ]]; then
+    echo "Swap size set to: $SwapSize"
+    break
+  else
+    echo "Invalid swap size. Please enter a size in the format '2G' or '512M'."
+  fi
+done
+
+# Partition the disk
+echo "Partitioning /dev/$disk..."
+(
+echo g # Create a new GPT partition table
+echo n # New partition
+echo 1 # Partition number 1
+echo   # Default - start at beginning of disk
+echo +1G # End at 1GB
+
+echo n # New partition
+echo 2 # Partition number 2
+echo   # Default - start immediately after previous partition
+echo +$SwapSize # End at SwapSize
+
+echo n # New partition
+echo 3 # Partition number 3
+echo   # Default - start immediately after previous partition
+echo   # Default - use the rest of the disk
+
+echo w # Write the changes
+) | fdisk /dev/$disk
+
+# Display the partition table
+echo "Partitioning complete. Updated disk layout:"
+fdisk -l /dev/$disk
+################################################################ TESTING
   clear
   Partition_Boot=${Partition_Boot:-$disk\1}
   Partition_Swap=${Partition_Swap:-$disk\2}
