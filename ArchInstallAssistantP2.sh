@@ -180,6 +180,27 @@
   fi
 
   while true; do
+  read -p "Enable AUR Support with yay? [y/n] = " aur
+  case "${aur,,}" in
+  y)
+  echo "Downloading & installing yay..."
+  git clone https://aur.archlinux.org/yay.git
+  cd ./yay
+  makepkg -si
+  #Credits to RomjanHossain
+  break
+  ;;
+  n)
+  echo "AUR will not be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
+  while true; do
   read -p "Install oh-my-bash? [y/n] = " omb
   case "${omb,,}" in
   y)
@@ -240,5 +261,5 @@
   clear
   echo "___________________________________________________________________"
   echo "             \/ \/ \/ \/ DO THIS RIGHT NOW \/ \/ \/"
-  echo "Input [exit] to continue & then input bash ./ArchInstallAssistantP3"
+  echo "Input [exit] to continue & then input bash ./ArchInstallAssistantP3.sh"
 # Written by Nakildias
