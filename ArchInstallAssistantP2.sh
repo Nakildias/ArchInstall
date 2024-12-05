@@ -186,6 +186,7 @@ while true; do
   y)
     echo "Downloading & installing yay..."
     git clone https://aur.archlinux.org/yay.git
+    chmod +rwx ./yay
     cd ./yay || exit
     if [[ $EUID -eq 0 ]]; then
       # Script is running as root
