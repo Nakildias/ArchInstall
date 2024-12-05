@@ -186,14 +186,17 @@ while true; do
   y)
     echo "Downloading & installing yay..."
     git clone https://aur.archlinux.org/yay.git
-    chmod +rwx ./yay/*
     cd ./yay || exit
+
     if [[ $EUID -eq 0 ]]; then
       # Script is running as root
-      sudo -u "$username" makepkg -si
+
+      # Ensure the correct permissions for the user
+      chown -R "$username":"$username" .
+      sudo -u "$username" env BUILDDIR="$HOME/.cache/yay-build" makepkg -si
     else
       # Script is running as a non-root user
-      makepkg -si
+      env BUILDDIR="$HOME/.cache/yay-build" makepkg -si
     fi
     # Credits to RomjanHossain
     break
