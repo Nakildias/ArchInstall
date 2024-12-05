@@ -179,28 +179,33 @@
   done
   fi
 
-  while true; do
+
+while true; do
   read -p "Enable AUR Support with yay? [y/n] = " aur
   case "${aur,,}" in
   y)
-  echo "Downloading & installing yay..."
-  git clone https://aur.archlinux.org/yay.git
-  cd ./yay
-  su $username
-  makepkg -si
-  su root
-  #Credits to RomjanHossain
-  break
-  ;;
+    echo "Downloading & installing yay..."
+    git clone https://aur.archlinux.org/yay.git
+    cd ./yay || exit
+    if [[ $EUID -eq 0 ]]; then
+      # Script is running as root
+      sudo -u "$username" makepkg -si
+    else
+      # Script is running as a non-root user
+      makepkg -si
+    fi
+    # Credits to RomjanHossain
+    break
+    ;;
   n)
-  echo "AUR will not be installed."
-  break
-  ;;
+    echo "AUR will not be installed."
+    break
+    ;;
   *)
-  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
-  ;;
+    echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+    ;;
   esac
-  done
+done
 
   while true; do
   read -p "Install oh-my-bash? [y/n] = " omb
