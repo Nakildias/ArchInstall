@@ -49,7 +49,7 @@
   #fdisk -l
   #read -p "Disk for grub example sda = " disk
   while true; do
-  read -p "Enable Parallel Downloads for pacstrap? y/n = " Parallel
+  read -p "Enable Parallel Downloads for pacstrap? [y/n] = " Parallel
   case "${Parallel,,}" in
   y)
   echo "Parallel Downloads enabled."
@@ -81,38 +81,108 @@
   sed -i 37s/.*/ParallelDownloads\ =\ $Parallel_Value/ /etc/pacman.conf
   fi
   #END CHOOSING PARALLEL THREADS COUNT
-  read -p "Enable NetworkManager? [y/n] : " nm
-  if [ "${nm,,}" = "y" ]; then
+
+  while true; do
+  read -p "Enable Network Manager Service? [y/n] = " nm
+  case "${nm,,}" in
+  y)
+  echo "Network Manager service enabled."
   systemctl enable NetworkManager
-  fi
-  read -p "Enable SSH? [y/n] : " ssh
-  if [ "${ssh,,}" = "y" ]; then
+  break
+  ;;
+  n)
+  echo "NetworkManager service not enabled."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
+  while true; do
+  read -p "Enable SSH Service? [y/n] = " ssh
+  case "${ssh,,}" in
+  y)
+  echo "SSH service enabled."
   systemctl enable sshd
-  fi
-  
+  break
+  ;;
+  n)
+  echo "SSH service not enabled."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
   if command -v sddm &> /dev/null; then
-  read -p "Enable SDDM? [y/n] : " sddm
-  if [ "${sddm,,}" = "y" ]; then
+  while true; do
+  read -p "Enable SDDM Service? [y/n] = " sddm
+  case "${sddm,,}" in
+  y)
+  echo "SDDM service enabled."
   systemctl enable sddm
+  break
+  ;;
+  n)
+  echo "SDDM service not enabled."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
   fi
-  fi
-  
+
   if command -v gdm &> /dev/null; then
-  read -p "Enable GDM? [y/n] : " gdm
-  if [ "${gdm,,}" = "y" ]; then
+  while true; do
+  read -p "Enable GDM Service? [y/n] = " gdm
+  case "${gdm,,}" in
+  y)
+  echo "GDM service enabled."
   systemctl enable gdm
-  fi  
+  break
+  ;;
+  n)
+  echo "GDM service not enabled."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
   fi
   
   if command -v lightdm &> /dev/null; then
-  read -p "Enable LightDM? [y/n] : " lightdm
-  if [ "${lightdm,,}" = "y" ]; then
+  while true; do
+  read -p "Enable LightDM Service? [y/n] = " lightdm
+  case "${lightdm,,}" in
+  y)
+  echo "LightDM service enabled."
   systemctl enable lightdm
+  break
+  ;;
+  n)
+  echo "LightDM service not enabled."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
   fi
-  fi
-  
-  read -p "Install oh-my-bash? [y/n] : " omb
-  if [ "${omb,,}" = "y" ]; then
+
+  while true; do
+  read -p "Install oh-my-bash? [y/n] = " omb
+  case "${omb,,}" in
+  y)
+  echo "Installing oh-my-bash..."
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)" --unattended
   sed -i 12s/.*/OSH_THEME="archinstall_default"/ ~/.bashrc
   echo "oh-my-bash installed for user root"
@@ -125,24 +195,47 @@
   chmod +rwx /home/$username/.*
   sed -i "8c export OSH='/home/$username/.oh-my-bash'" /home/$username/.bashrc
   echo "oh-my-bash set to use archinstall_default theme"
-  echo "More bash themes can be found at default for this install is [lamba]"
+  echo "More bash themes can be found at default for this install is [archinstall_default]"
   echo "https://github.com/ohmybash/oh-my-bash/tree/master/themes"
   echo "Theme config is located at ~/.bashrc line #12"
-  fi
+  break
+  ;;
+  n)
+  echo "oh-my-bash won't be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
   
   echo "Installing Grub to /boot"
   grub-install --efi-directory=/boot
   echo "Configuring Grub /boot/grub/grub.cfg"
   grub-mkconfig -o /boot/grub/grub.cfg
 
-
-  read -p "Change Grub Theme? [y/n] : " gt
-  if [ "${gt,,}" = "y" ]; then
+  while true; do
+  read -p "Change Grub Theme? [y/n] = " grub
+  case "${grub,,}" in
+  y)
+  echo "Changing Grub Theme."
   git clone https://github.com/RomjanHossain/Grub-Themes.git
   cd ./Grub-Themes
   bash ./install.sh
   #Credits to RomjanHossain
-  fi
+  break
+  ;;
+  n)
+  echo "Keeping current unthemed Grub."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
   clear
   echo "___________________________________________________________________"
   echo "             \/ \/ \/ \/ DO THIS RIGHT NOW \/ \/ \/"
