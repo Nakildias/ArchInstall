@@ -48,6 +48,7 @@
   sed -i 125s/#\ // /etc/sudoers
   #fdisk -l
   #read -p "Disk for grub example sda = " disk
+  #BEGIN ENABLE PARALLEL DOWNLOADS OPTION
   while true; do
   read -p "Enable Parallel Downloads for pacstrap? [y/n] = " Parallel
   case "${Parallel,,}" in
