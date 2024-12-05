@@ -186,7 +186,9 @@
   echo "Downloading & installing yay..."
   git clone https://aur.archlinux.org/yay.git
   cd ./yay
+  su $username
   makepkg -si
+  su root
   #Credits to RomjanHossain
   break
   ;;
