@@ -12,19 +12,7 @@
 ##  Step 3 - CD into ArchInstall directory
 > cd ArchInstall
 #
-##  Step 4 - Bash into ArchInstallAssistant.sh
-> bash ArchInstallAssistant.sh
+##  Step 4 - Bash into install.sh
+>bash install.sh
 #
-##  Step 5 - Follow the instrutions in the bash script
-#
-##  Step 6 - Bashing into part 2
-> bash ArchInstallAssistantP2.sh
-#
-##  Step 7 - Follow the instrutions in the bash script
-#
-##  Step 8 - Once the script is done it is very important to Exit chroot and Shutdown the computer properly
-> exit
-#
-> shutdown now
-#
-Arch Linux should be installed once the computer starts back up without the install media.
+##  Step 4 - Follow steps in terminal
