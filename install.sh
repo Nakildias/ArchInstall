@@ -415,16 +415,15 @@ fdisk -l /dev/$disk
   echo "Installing oh-my-bash..."
   arch-chroot /mnt bash -c "$(curl -fsSL https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh)" --unattended
   arch-chroot /mnt sed -i 12s/.*/OSH_THEME="archinstall_default"/ ~/.bashrc
-  arch-chroot /mnt echo "oh-my-bash installed for user root"
+  echo "oh-my-bash installed for user root"
   echo "copying root config to $username"
-  arch-chroot /mnt cp -rf ~/.* /home/$username/
-  arch-chroot /mnt mkdir /home/$username/.oh-my-bash/themes/archinstall_default
-  arch-chroot /mnt git clone https://github.com/Nakildias/ArchInstall.git
-  arch-chroot /mnt cp /ArchInstall/archinstall_default.theme.sh /home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
-  arch-chroot /mnt mkdir /root/.oh-my-bash/themes/archinstall_default
-  arch-chroot /mnt mv /ArchInstall/archinstall_default.theme.sh /root/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
-  arch-chroot /mnt chmod +rwx /home/$username/.*
-  arch-chroot /mnt sed -i "8c export OSH='/home/$username/.oh-my-bash'" /home/$username/.bashrc
+  cp -rf /mnt/root/.* /mnt/home/$username/
+  mkdir /mnt/home/$username/.oh-my-bash/themes/archinstall_default
+  cp /ArchInstall/archinstall_default.theme.sh /mnt/home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  mkdir /mnt/root/.oh-my-bash/themes/archinstall_default
+  cp /ArchInstall/archinstall_default.theme.sh /mnt/root/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  chmod +rwx /mnt/home/$username/.*
+  sed -i "8c export OSH='/home/$username/.oh-my-bash'" /mnt/home/$username/.bashrc
   echo "oh-my-bash set to use archinstall_default theme"
   echo "More bash themes can be found at default for this install is [archinstall_default]"
   echo "https://github.com/ohmybash/oh-my-bash/tree/master/themes"
@@ -469,6 +468,7 @@ fdisk -l /dev/$disk
   clear
   echo "Installation finished"
   echo "Shutting down...."
+  read -p "Press ENTER when ready"
   sleep 1
   shutdown now
 # Written by Nakildias
