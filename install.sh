@@ -452,8 +452,7 @@ fdisk -l /dev/$disk
   y)
   echo "Changing Grub Theme."
   arch-chroot /mnt git clone https://github.com/RomjanHossain/Grub-Themes.git
-  arch-chroot /mnt cd ./Grub-Themes
-  arch-chroot /mnt bash ./install.sh
+  arch-chroot /mnt bash /Grub-Themes/install.sh
   #Credits to RomjanHossain
   break
   ;;
