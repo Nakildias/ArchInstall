@@ -419,9 +419,9 @@ fdisk -l /dev/$disk
   echo "copying root config to $username"
   cp -rf /mnt/root/.* /mnt/home/$username/
   mkdir /mnt/home/$username/.oh-my-bash/themes/archinstall_default
-  cp /ArchInstall/archinstall_default.theme.sh /mnt/home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  cp /root/ArchInstall/archinstall_default.theme.sh /mnt/home/$username/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
   mkdir /mnt/root/.oh-my-bash/themes/archinstall_default
-  cp /ArchInstall/archinstall_default.theme.sh /mnt/root/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
+  cp /root/ArchInstall/archinstall_default.theme.sh /mnt/root/.oh-my-bash/themes/archinstall_default/archinstall_default.theme.sh
   chmod +rwx /mnt/home/$username/.*
   sed -i "8c export OSH='/home/$username/.oh-my-bash'" /mnt/home/$username/.bashrc
   echo "oh-my-bash set to use archinstall_default theme"
