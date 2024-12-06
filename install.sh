@@ -446,7 +446,7 @@ fdisk -l /dev/$disk
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
   while true; do
-  read -p "Change Grub Theme? [y/n] = " grub
+  read -p "Change Grub Theme? DOESN'T WORK ATM [y/n] = " grub
   case "${grub,,}" in
   y)
   echo "Changing Grub Theme."
