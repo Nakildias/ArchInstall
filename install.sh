@@ -50,7 +50,6 @@ partitions=($(lsblk -np | grep "/dev/$disk" | awk '{print $1}'))
 if [ ${#partitions[@]} -gt 0 ]; then
   echo "Found partitions: ${partitions[@]}"
     parted -s /dev/$disk rm
-  done
   echo "All existing partitions deleted."
 else
   echo "No existing partitions found on /dev/$disk."
