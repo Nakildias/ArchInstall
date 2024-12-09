@@ -346,7 +346,9 @@ fdisk -l /dev/$disk
   esac
   done
 
-  if command -v sddm &> /dev/null; then
+  if pgrep -f sddm > /dev/null; then
+  echo "SDDM Detected."
+  else
   while true; do
   read -p "Enable SDDM Service? [y/n] = " sddm
   case "${sddm,,}" in
@@ -366,7 +368,11 @@ fdisk -l /dev/$disk
   done
   fi
 
-  if command -v gdm &> /dev/null; then
+  #if command -v gdm &> /dev/null; then
+  # Check if gdm service exists
+  if pgrep -f gdm > /dev/null; then
+  echo "GDM Detected."
+  else
   while true; do
   read -p "Enable GDM Service? [y/n] = " gdm
   case "${gdm,,}" in
@@ -386,7 +392,10 @@ fdisk -l /dev/$disk
   done
   fi
   
-  if command -v lightdm &> /dev/null; then
+  
+  if pgrep -f lightdm > /dev/null; then
+  echo "LightDM Detected."
+  else
   while true; do
   read -p "Enable LightDM Service? [y/n] = " lightdm
   case "${lightdm,,}" in
@@ -443,30 +452,11 @@ fdisk -l /dev/$disk
   echo "Configuring Grub /boot/grub/grub.cfg"
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
-  while true; do
-  read -p "Change Grub Theme? DOESN'T WORK ATM [y/n] = " grub
-  case "${grub,,}" in
-  y)
-  echo "Changing Grub Theme."
-  arch-chroot /mnt git clone https://github.com/RomjanHossain/Grub-Themes.git
-  arch-chroot /mnt bash /Grub-Themes/install.sh
-  #Credits to RomjanHossain
-  break
-  ;;
-  n)
-  echo "Keeping current unthemed Grub."
-  break
-  ;;
-  *)
-  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
-  ;;
-  esac
-  done
+  #arch-chroot /mnt git clone https://github.com/RomjanHossain/Grub-Themes.git
+  #arch-chroot /mnt bash /Grub-Themes/install.sh
+
 
   clear
-  echo "Installation finished"
-  echo "Shutting down...."
-  read -p "Press ENTER when ready"
-  sleep 1
+  read -p "Press ENTER to finish the installation"
   shutdown now
 # Written by Nakildias
