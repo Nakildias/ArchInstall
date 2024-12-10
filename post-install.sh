@@ -107,6 +107,8 @@
   echo "MacSequoia will be installed."
   git clone https://github.com/vinceliuice/MacSonoma-kde.git
   sudo bash ./MacSonoma-kde/install.sh
+  sudo pacman -Sy kvantum
+  kvantummanager --set MacSonoma
   break
   ;;
   n)
