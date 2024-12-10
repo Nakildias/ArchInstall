@@ -6,7 +6,7 @@
   y)
   echo "Grub Theme will be installed."
   git clone https://github.com/RomjanHossain/Grub-Themes.git
-  bash ./Grub-Themes/install.sh
+  sudo bash ./Grub-Themes/install.sh
   break
   ;;
   n)
