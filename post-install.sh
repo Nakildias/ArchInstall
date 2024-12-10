@@ -101,18 +101,18 @@
   done
 
   while true; do
-  read -p "Install MacSequoia Theme?(REQUIRES KDE) [y/n] = " kt
+  read -p "Install MacSequoiaDark Theme?(REQUIRES KDE) [y/n] = " kt
   case "${kt,,}" in
   y)
   echo "MacSequoia will be installed."
   git clone https://github.com/vinceliuice/MacSonoma-kde.git
   sudo bash ./MacSonoma-kde/install.sh
   sudo pacman -Sy kvantum
-  kvantummanager --set MacSonoma
+  kvantummanager --set MacSonomaDark
   break
   ;;
   n)
-  echo "MacSequoia will not be installed."
+  echo "MacSequoiaDark will not be installed."
   break
   ;;
   *)
