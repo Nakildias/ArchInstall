@@ -5,8 +5,8 @@
   case "${gt,,}" in
   y)
   echo "Grub Theme will be installed."
-  git clone https://github.com/Nakildias/Grub-Themes.git
-  sudo bash ./Grub-Themes/install.sh
+  git clone https://github.com/Nakildias/ArchGrubTheme.git
+  sudo bash ./ArchGrubTheme/install.sh
   break
   ;;
   n)
