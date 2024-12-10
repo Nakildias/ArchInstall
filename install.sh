@@ -94,9 +94,31 @@ fdisk -l /dev/$disk
 ################################################################ TESTING
 
   clear
+  while true; do
+  read -p "Is the targeted drive nvme? y/n = " nvme
+  case "${nvme,,}" in
+  y)
+  echo "NVME = True."
+  Partition_Boot=${Partition_Boot:-$disk\p1}
+  Partition_Swap=${Partition_Swap:-$disk\p2}
+  Partition_Root=${Partition_Root:-$disk\p3}
+  break
+  ;;
+  n)
+  echo "NVME = False."
   Partition_Boot=${Partition_Boot:-$disk\1}
   Partition_Swap=${Partition_Swap:-$disk\2}
   Partition_Root=${Partition_Root:-$disk\3}
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+  #Partition_Boot=${Partition_Boot:-$disk\1}
+  #Partition_Swap=${Partition_Swap:-$disk\2}
+  #Partition_Root=${Partition_Root:-$disk\3}
   fdisk -l
   echo ""
   echo "$Partition_Boot (BOOT) | $Partition_Swap (SWAP) | $Partition_Root (ROOT)"
