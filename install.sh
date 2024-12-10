@@ -94,28 +94,39 @@ fdisk -l /dev/$disk
 ################################################################ TESTING
 
   clear
-  while true; do
-  read -p "Is the targeted drive nvme? y/n = " nvme
-  case "${nvme,,}" in
-  y)
-  echo "NVME = True."
+  if [[ "$disk" == *"nvme"* ]]; then
+  echo "The disk type is NVMe"
   Partition_Boot=${Partition_Boot:-$disk\p1}
   Partition_Swap=${Partition_Swap:-$disk\p2}
   Partition_Root=${Partition_Root:-$disk\p3}
-  break
-  ;;
-  n)
-  echo "NVME = False."
+  else
+  echo "The disk type is not NVMe"
   Partition_Boot=${Partition_Boot:-$disk\1}
   Partition_Swap=${Partition_Swap:-$disk\2}
   Partition_Root=${Partition_Root:-$disk\3}
-  break
-  ;;
-  *)
-  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
-  ;;
-  esac
-  done
+  fi
+  #while true; do
+  #read -p "Is the targeted drive nvme? y/n = " nvme
+  #case "${nvme,,}" in
+  #y)
+  #echo "NVME = True."
+  #Partition_Boot=${Partition_Boot:-$disk\p1}
+  #Partition_Swap=${Partition_Swap:-$disk\p2}
+  #Partition_Root=${Partition_Root:-$disk\p3}
+  #break
+  #;;
+  #n)
+  #echo "NVME = False."
+  #Partition_Boot=${Partition_Boot:-$disk\1}
+  #Partition_Swap=${Partition_Swap:-$disk\2}
+  #Partition_Root=${Partition_Root:-$disk\3}
+  #break
+  #;;
+  #*)
+  #echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  #;;
+  #esac
+  #done
   #Partition_Boot=${Partition_Boot:-$disk\1}
   #Partition_Swap=${Partition_Swap:-$disk\2}
   #Partition_Root=${Partition_Root:-$disk\3}
@@ -368,8 +379,7 @@ fdisk -l /dev/$disk
   esac
   done
 
-  if pgrep -f sddm > /dev/null; then
-  echo "SDDM Detected."
+  if [[ $de =~ [1] ]]; then
   else
   while true; do
   read -p "Enable SDDM Service? [y/n] = " sddm
@@ -392,7 +402,7 @@ fdisk -l /dev/$disk
 
   #if command -v gdm &> /dev/null; then
   # Check if gdm service exists
-  if pgrep -f gdm > /dev/null; then
+  if [[ $de =~ [234] ]]; then
   echo "GDM Detected."
   else
   while true; do
@@ -415,8 +425,7 @@ fdisk -l /dev/$disk
   fi
   
   
-  if pgrep -f lightdm > /dev/null; then
-  echo "LightDM Detected."
+  if [[ $de =~ [5] ]]; then
   else
   while true; do
   read -p "Enable LightDM Service? [y/n] = " lightdm
