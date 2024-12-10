@@ -44,7 +44,7 @@
   case "${vm,,}" in
   y)
   echo "QEMU KVM + VM Manager will be installed."
-  sudo pacman -Sy qemu-full virt-manager libvirt
+  sudo pacman -Sy qemu-full virt-manager libvirt dnsmasq
   echo "Enabling libvirt service"
   sudo systemctl enable libvirtd
   echo "Starting libvirt service"
