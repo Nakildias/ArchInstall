@@ -49,8 +49,9 @@
   sudo systemctl enable libvirtd
   echo "Starting libvirt service"
   sudo systemctl start libvirtd
-  echo "Enabling default network on boot"
+  echo "Enabling & starting default network"
   sudo virsh net-autostart default
+  sudo virsh net-start default
   break
   ;;
   n)
