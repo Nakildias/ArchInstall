@@ -380,7 +380,6 @@ fdisk -l /dev/$disk
   done
 
   if [[ $de =~ [1] ]]; then
-  else
   while true; do
   read -p "Enable SDDM Service? [y/n] = " sddm
   case "${sddm,,}" in
@@ -403,8 +402,6 @@ fdisk -l /dev/$disk
   #if command -v gdm &> /dev/null; then
   # Check if gdm service exists
   if [[ $de =~ [234] ]]; then
-  echo "GDM Detected."
-  else
   while true; do
   read -p "Enable GDM Service? [y/n] = " gdm
   case "${gdm,,}" in
@@ -426,7 +423,6 @@ fdisk -l /dev/$disk
   
   
   if [[ $de =~ [5] ]]; then
-  else
   while true; do
   read -p "Enable LightDM Service? [y/n] = " lightdm
   case "${lightdm,,}" in
