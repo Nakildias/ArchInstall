@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+  while true; do
   read -p "Install a Grub Theme? [y/n] = " gt
   case "${gt,,}" in
   y)
@@ -19,6 +19,7 @@
   esac
   done
 
+  while true; do
   read -p "Install AUR Helper (yay)? [y/n] = " yay
   case "${yay,,}" in
   y)
@@ -38,6 +39,7 @@
   esac
   done
 
+  while true; do
   read -p "Install QEMU KVM & Virtual Machine Manager? [y/n] = " vm
   case "${vm,,}" in
   y)
