@@ -1,11 +1,11 @@
 #!/bin/bash
 
   while true; do
-  read -p "Install a Grub Theme? [y/n] = " gt
+  read -p "Install the Arch Grub Theme? [y/n] = " gt
   case "${gt,,}" in
   y)
   echo "Grub Theme will be installed."
-  git clone https://github.com/RomjanHossain/Grub-Themes.git
+  git clone https://github.com/Nakildias/Grub-Themes.git
   sudo bash ./Grub-Themes/install.sh
   break
   ;;
