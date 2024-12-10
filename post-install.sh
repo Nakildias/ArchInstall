@@ -99,3 +99,22 @@
   ;;
   esac
   done
+
+  while true; do
+  read -p "Install MacSequoia Theme?(REQUIRES KDE) [y/n] = " kt
+  case "${kt,,}" in
+  y)
+  echo "MacSequoia will be installed."
+  git clone https://github.com/vinceliuice/MacSonoma-kde.git
+  sudo bash ./MacSonoma-kde/install.sh
+  break
+  ;;
+  n)
+  echo "MacSequoia will not be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
