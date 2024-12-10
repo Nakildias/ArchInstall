@@ -83,8 +83,8 @@
   done
 
   while true; do
-  read -p "Install p7zip-gui from aur? [y/n] = " 7z
-  case "${7z,,}" in
+  read -p "Install p7zip-gui from aur? [y/n] = " zip
+  case "${zip,,}" in
   y)
   echo "p7zip-gui will be installed."
   yay p7zip-gui
