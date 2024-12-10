@@ -63,3 +63,39 @@
   ;;
   esac
   done
+
+  while true; do
+  read -p "Install LibreOffice? [y/n] = " lo
+  case "${lo,,}" in
+  y)
+  echo "LibreOffice will be installed."
+  sudo pacman -Sy libreoffice-fresh
+  break
+  ;;
+  n)
+  echo "LibreOffice will not be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
+  while true; do
+  read -p "Install p7zip-gui from aur? [y/n] = " 7z
+  case "${7z,,}" in
+  y)
+  echo "p7zip-gui will be installed."
+  yay p7zip-gui
+  break
+  ;;
+  n)
+  echo "p7zip-gui will not be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
