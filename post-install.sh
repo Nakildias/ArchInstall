@@ -107,8 +107,23 @@
   echo "MacSequoia will be installed."
   sudo pacman -Sy wget kvantum
   yay konsave
-  wget https://filebrowser.nakildias.com/api/public/dl/i6Bdasd1/media/SSD2/MacTheme.knsv
+  wget https://filebrowser.nakildias.com/api/public/dl/AIwMhtlD/media/SSD2/kdedefaults/MacSonoma.knsv
   konsave -i ./MacTheme.knsv
+  wget https://filebrowser.nakildias.com/api/public/dl/crhWSeLI/media/SSD2/kdedefaults/kcminputrc
+  wget https://filebrowser.nakildias.com/api/public/dl/GiyBmjtQ/media/SSD2/kdedefaults/kdeglobals
+  wget https://filebrowser.nakildias.com/api/public/dl/QdztgEE7/media/SSD2/kdedefaults/ksplashrc
+  wget https://filebrowser.nakildias.com/api/public/dl/hav9WqzH/media/SSD2/kdedefaults/kwinrc
+  wget https://filebrowser.nakildias.com/api/public/dl/jiObt5kN/media/SSD2/kdedefaults/package
+  wget https://filebrowser.nakildias.com/api/public/dl/-95e5hc5/media/SSD2/kdedefaults/plasmarc
+  rm -rf ~/.config/kdedefaults
+  mkdir ~/.config/kdedefaults
+  cp ./kcminputrc ~/.config/kdedefaults/
+  cp ./kdeglobals ~/.config/kdedefaults/
+  cp ./ksplashrc ~/.config/kdedefaults/
+  cp ./kwinrc ~/.config/kdedefaults/
+  cp ./package ~/.config/kdedefaults/
+  cp ./plasmarc ~/.config/kdedefaults/
+  sudo reboot now
 
   break
   ;;
