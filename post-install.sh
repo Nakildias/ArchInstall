@@ -117,13 +117,14 @@
   wget https://filebrowser.nakildias.com/api/public/dl/-95e5hc5/media/SSD2/kdedefaults/plasmarc
   rm -rf ~/.config/kdedefaults
   mkdir ~/.config/kdedefaults
-  cp ./kcminputrc ~/.config/kdedefaults/
-  cp ./kdeglobals ~/.config/kdedefaults/
-  cp ./ksplashrc ~/.config/kdedefaults/
-  cp ./kwinrc ~/.config/kdedefaults/
-  cp ./package ~/.config/kdedefaults/
-  cp ./plasmarc ~/.config/kdedefaults/
-  sudo reboot now
+  cp ./kcminputrc ~/.config/kdedefaults/kcminputrc
+  cp ./kdeglobals ~/.config/kdedefaults/kdeglobals
+  cp ./ksplashrc ~/.config/kdedefaults/ksplashrc
+  cp ./kwinrc ~/.config/kdedefaults/kwinrc
+  cp ./package ~/.config/kdedefaults/package
+  cp ./plasmarc ~/.config/kdedefaults/plasmarc
+  echo "Reboot to apply changes"
+  sleep 5
 
   break
   ;;
