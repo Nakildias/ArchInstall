@@ -44,7 +44,7 @@
   case "${vm,,}" in
   y)
   echo "QEMU KVM + VM Manager will be installed."
-  sudo pacman -Sy qemu-full virt-manager libvirt dnsmasq
+  sudo pacman -Sy --noconfirm qemu-full virt-manager libvirt dnsmasq
   echo "Enabling libvirt service"
   sudo systemctl enable libvirtd
   echo "Starting libvirt service"
@@ -69,7 +69,7 @@
   case "${lo,,}" in
   y)
   echo "LibreOffice will be installed."
-  sudo pacman -Sy libreoffice-fresh
+  sudo pacman -Sy --noconfirm libreoffice-fresh
   break
   ;;
   n)
@@ -87,7 +87,7 @@
   case "${zip,,}" in
   y)
   echo "p7zip-gui will be installed."
-  yay p7zip-gui
+  yay -Yg p7zip-gui
   break
   ;;
   n)
@@ -105,10 +105,10 @@
   case "${kt,,}" in
   y)
   echo "MacSequoia will be downloaded."
-  sudo pacman -Sy wget kvantum
-  yay konsave
+  sudo pacman -Sy --noconfirm wget kvantum
+  yay -Yg konsave
   wget https://filebrowser.nakildias.com/api/public/dl/AIwMhtlD/media/SSD2/kdedefaults/MacSonoma.knsv
-  konsave -i ./MacTheme.knsv
+  konsave -i ./MacSonoma.knsv
   echo "Theme added, you can now change it in your plasma settings."
   sleep 5
 
