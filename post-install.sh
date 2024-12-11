@@ -104,26 +104,12 @@
   read -p "Install MacSequoiaDark Theme?(REQUIRES KDE) [y/n] = " kt
   case "${kt,,}" in
   y)
-  echo "MacSequoia will be installed."
+  echo "MacSequoia will be downloaded."
   sudo pacman -Sy wget kvantum
   yay konsave
   wget https://filebrowser.nakildias.com/api/public/dl/AIwMhtlD/media/SSD2/kdedefaults/MacSonoma.knsv
   konsave -i ./MacTheme.knsv
-  wget https://filebrowser.nakildias.com/api/public/dl/crhWSeLI/media/SSD2/kdedefaults/kcminputrc
-  wget https://filebrowser.nakildias.com/api/public/dl/GiyBmjtQ/media/SSD2/kdedefaults/kdeglobals
-  wget https://filebrowser.nakildias.com/api/public/dl/QdztgEE7/media/SSD2/kdedefaults/ksplashrc
-  wget https://filebrowser.nakildias.com/api/public/dl/hav9WqzH/media/SSD2/kdedefaults/kwinrc
-  wget https://filebrowser.nakildias.com/api/public/dl/jiObt5kN/media/SSD2/kdedefaults/package
-  wget https://filebrowser.nakildias.com/api/public/dl/-95e5hc5/media/SSD2/kdedefaults/plasmarc
-  rm -rf ~/.config/kdedefaults
-  mkdir ~/.config/kdedefaults
-  cp ./kcminputrc ~/.config/kdedefaults/kcminputrc
-  cp ./kdeglobals ~/.config/kdedefaults/kdeglobals
-  cp ./ksplashrc ~/.config/kdedefaults/ksplashrc
-  cp ./kwinrc ~/.config/kdedefaults/kwinrc
-  cp ./package ~/.config/kdedefaults/package
-  cp ./plasmarc ~/.config/kdedefaults/plasmarc
-  echo "Reboot to apply changes"
+  echo "Theme added, you can now change it in your plasma settings."
   sleep 5
 
   break
