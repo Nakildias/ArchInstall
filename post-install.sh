@@ -105,10 +105,11 @@
   case "${kt,,}" in
   y)
   echo "MacSequoia will be installed."
-  git clone https://github.com/vinceliuice/MacSonoma-kde.git
-  sudo bash ./MacSonoma-kde/install.sh
-  sudo pacman -Sy kvantum
-  kvantummanager --set MacSonomaDark
+  sudo pacman -Sy wget kvantum
+  yay konsave
+  wget https://filebrowser.nakildias.com/api/public/dl/i6Bdasd1/media/SSD2/MacTheme.knsv
+  konsave -i ./MacTheme.knsv
+
   break
   ;;
   n)
