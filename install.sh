@@ -30,7 +30,7 @@ echo -e "\033[0;34mAvailable disks:\033[0m ${valid_disks[@]}"
 while true; do
   read -p "Disk = " disk
   if [[ " ${valid_disks[@]} " =~ " ${disk} " ]]; then
-    echo "You selected a valid disk: $disk"
+    echo -e "\033[0;32mYou selected a valid disk:\033[0m $disk"
     break
   else
     echo -e "\033[0;31mInvalid disk. Please try again.\033[0m"
@@ -49,18 +49,18 @@ fi
 echo "Checking for existing partitions on /dev/$disk..."
 partitions=($(lsblk -np | grep "/dev/$disk" | awk '{print $1}'))
 if [ ${#partitions[@]} -gt 0 ]; then
-  echo "Found partitions: ${partitions[@]}"
+  echo -e "\033[0;32mFound partitions:\033[0m ${partitions[@]}"
     echo 1 | parted /dev/$disk rm
-  echo "All existing partitions on $disk were deleted."
+  echo -e "\033[0;32mAll existing partitions on\033[0m $disk \033[0;32mwere deleted.\033[0m"
 else
-  echo "No existing partitions found on /dev/$disk."
+  echo -e "\033[0;31mNo existing partitions found on /dev/$disk.\033[0m"
 fi
 
 # Ask for the swap size
 while true; do
   read -p "Enter Swap Size (e.g., 2G, 512M): " SwapSize
   if [[ $SwapSize =~ ^[0-9]+[MG]$ ]]; then
-    echo "Swap size set to: $SwapSize"
+    echo -e "\033[0;32mSwap size set to:\033[0m $SwapSize"
     break
   else
     echo -e "\033[0;31mInvalid swap size. Please enter a size in the format '2G' or '512M'.\033[0m"
@@ -90,7 +90,8 @@ echo w # Write the changes
 ) | fdisk /dev/$disk
 
 # Display the partition table
-echo "Partitioning complete. Updated disk layout:"
+echo -e "\033[0;32mPartitioning complete.\033[0m"
+echo "Updated disk layout:"
 fdisk -l /dev/$disk
 ################################################################ TESTING
 
@@ -140,12 +141,12 @@ fdisk -l /dev/$disk
   mkfs.fat -F 32 /dev/$Partition_Boot
   mkswap /dev/$Partition_Swap
   mkfs.ext4 /dev/$Partition_Root
-  echo "Partitioning Done"
+  echo -e "\033[0;32mPartitioning Done\033[0m"
   echo "Mounting partitions..."
   mount /dev/$Partition_Root /mnt
   mount --mkdir /dev/$Partition_Boot /mnt/boot
   swapon /dev/$Partition_Swap
-  echo "Mounting Completed"
+  echo -e "\033[0;32mMounting Completed\033[0m"
   echo "Pacstraping..."
   #
   #
@@ -154,11 +155,11 @@ fdisk -l /dev/$disk
   read -p "Enable Parallel Downloads for pacstrap? y/n = " Parallel
   case "${Parallel,,}" in
   y)
-  echo "Parallel Downloads enabled."
+  echo -e "\033[0;32mParallel Downloads enabled.\033[0m"
   break
   ;;
   n)
-  echo "Parallel Downloads not enabled."
+  echo -e "\033[0;32mParallel Downloads not enabled.\033[0m"
   break
   ;;
   *)
@@ -211,9 +212,9 @@ fdisk -l /dev/$disk
   #END ENABLE NVIDIA OPTION (WIP)
   #BEGIN CHOOSING DESKTOP ENVIRONMENT
   echo "Choose your Desktop Environment"
-  echo "0) Server [Tested]"
-  echo "1) KDE Plasma [Tested]"
-  echo "2) Gnome [Tested]"
+  echo -e "0) Server \033[0;32m[Tested]\033[0m"
+  echo -e "1) KDE Plasma \033[0;32m[Tested]\033[0m"
+  echo -e "2) Gnome \033[0;32m[Tested]\033[0m"
   echo -e "3) LXDE \033[0;31m[Unknown]\033[0m"
   echo -e "4) Mate \033[0;31m[Unknown]\033[0m"
   echo -e "5) XFCE \033[0;31m[Unknown]\033[0m"
@@ -348,12 +349,12 @@ fdisk -l /dev/$disk
   read -p "Enable Network Manager Service? [y/n] = " nm
   case "${nm,,}" in
   y)
-  echo "Network Manager service enabled."
+  echo -e "\033[0;32mNetwork Manager service enabled.\033[0m"
   arch-chroot /mnt systemctl enable NetworkManager
   break
   ;;
   n)
-  echo "NetworkManager service not enabled."
+  echo -e "\033[0;32mNetworkManager service not enabled.\033[0m"
   break
   ;;
   *)
@@ -366,12 +367,12 @@ fdisk -l /dev/$disk
   read -p "Enable SSH Service? [y/n] = " ssh
   case "${ssh,,}" in
   y)
-  echo "SSH service enabled."
+  echo -e "\033[0;32mSSH service enabled.\033[0m"
   arch-chroot /mnt systemctl enable sshd
   break
   ;;
   n)
-  echo "SSH service not enabled."
+  echo -e "\033[0;32mSSH service not enabled.\033[0m"
   break
   ;;
   *)
@@ -385,12 +386,12 @@ fdisk -l /dev/$disk
   read -p "Enable SDDM Service? [y/n] = " sddm
   case "${sddm,,}" in
   y)
-  echo "SDDM service enabled."
+  echo -e "\033[0;32mSDDM service enabled.\033[0m"
   arch-chroot /mnt systemctl enable sddm
   break
   ;;
   n)
-  echo "SDDM service not enabled."
+  echo -e "\033[0;32mSDDM service not enabled.\033[0m"
   break
   ;;
   *)
@@ -407,12 +408,12 @@ fdisk -l /dev/$disk
   read -p "Enable GDM Service? [y/n] = " gdm
   case "${gdm,,}" in
   y)
-  echo "GDM service enabled."
+  echo -e "\033[0;32mGDM service enabled.\033[0m"
   arch-chroot /mnt systemctl enable gdm
   break
   ;;
   n)
-  echo "GDM service not enabled."
+  echo -e "\033[0;32mGDM service not enabled.\033[0m"
   break
   ;;
   *)
@@ -428,12 +429,12 @@ fdisk -l /dev/$disk
   read -p "Enable LightDM Service? [y/n] = " lightdm
   case "${lightdm,,}" in
   y)
-  echo "LightDM service enabled."
+  echo -e "\033[0;32mLightDM service enabled.\033[0m"
   arch-chroot /mnt systemctl enable lightdm
   break
   ;;
   n)
-  echo "LightDM service not enabled."
+  echo -e "\033[0;32mLightDM service not enabled.\033[0m"
   break
   ;;
   *)
@@ -466,7 +467,7 @@ fdisk -l /dev/$disk
   break
   ;;
   n)
-  echo "oh-my-bash won't be installed."
+  echo -e "\033[0;32moh-my-bash won't be installed.\033[0m"
   break
   ;;
   *)
@@ -479,6 +480,7 @@ fdisk -l /dev/$disk
   arch-chroot /mnt grub-install --efi-directory=/boot
   echo "Configuring Grub /boot/grub/grub.cfg"
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+  echo -e "\033[0;32mGrub Installed.\033[0m"
 
   #arch-chroot /mnt git clone https://github.com/RomjanHossain/Grub-Themes.git
   #arch-chroot /mnt bash /Grub-Themes/install.sh
