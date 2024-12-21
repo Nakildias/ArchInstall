@@ -3,7 +3,7 @@
   echo "Welcome to Arch Install by Nakildias"
   echo "Checking EFI"
   if [ ! -e "/sys/firmware/efi/fw_platform_size" ]; then
-  echo "\033[0;31mEFI firmware not available\033[0m"
+  echo -e "\033[0;31mEFI firmware not available\033[0m"
   echo "Fix this by enabling UEFI in your bios"
   while true; do
   sleep 60
