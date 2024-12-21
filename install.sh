@@ -38,7 +38,8 @@ while true; do
 done
 
 # Confirm the user wants to erase the disk
-read -p "\033[0;31mWarning: This will erase all data on /dev/$disk.\033[0m Are you sure? (yes/no): " confirmation
+echo -e "\033[0;31mWarning: This will erase all data on /dev/$disk.\033[0m"
+read -p "Are you sure? (yes/no): " confirmation
 if [[ "$confirmation" != "yes" ]]; then
   echo -e "\033[0;31mOperation canceled.\033[0m"
   exit 1
