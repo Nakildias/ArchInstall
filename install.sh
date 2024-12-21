@@ -9,7 +9,7 @@
   sleep 60
   done
   fi
-  echo "\033[0;32mEFI firmware available\033[0m"
+  echo -e "\033[0;32mEFI firmware available\033[0m"
   read -p "Press ENTER to continue"
   clear
   
