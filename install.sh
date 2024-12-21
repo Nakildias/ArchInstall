@@ -19,12 +19,12 @@ valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | 
 
 # Check if any disks are available
 if [ ${#valid_disks[@]} -eq 0 ]; then
-  echo "\033[0;31mNo valid disks found. Exiting.\033[0m"
+  echo -e "\033[0;31mNo valid disks found. Exiting.\033[0m"
   exit 1
 fi
 
 # Display available disks
-echo "\033[0;34mAvailable disks:\033[0m ${valid_disks[@]}"
+echo -e "\033[0;34mAvailable disks:\033[0m ${valid_disks[@]}"
 
 # Loop to get a valid disk input
 while true; do
@@ -33,14 +33,14 @@ while true; do
     echo "You selected a valid disk: $disk"
     break
   else
-    echo "\033[0;31mInvalid disk. Please try again.\033[0m"
+    echo -e "\033[0;31mInvalid disk. Please try again.\033[0m"
   fi
 done
 
 # Confirm the user wants to erase the disk
 read -p "Warning: This will erase all data on /dev/$disk. Are you sure? (yes/no): " confirmation
 if [[ "$confirmation" != "yes" ]]; then
-  echo "\033[0;31mOperation canceled.\033[0m"
+  echo -e "\033[0;31mOperation canceled.\033[0m"
   exit 1
 fi
 
@@ -62,7 +62,7 @@ while true; do
     echo "Swap size set to: $SwapSize"
     break
   else
-    echo "\033[0;31mInvalid swap size. Please enter a size in the format '2G' or '512M'.\033[0m"
+    echo -e "\033[0;31mInvalid swap size. Please enter a size in the format '2G' or '512M'.\033[0m"
   fi
 done
 
@@ -161,7 +161,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
@@ -175,7 +175,7 @@ fdisk -l /dev/$disk
   if [[ "$Parallel_Value" =~ ^[0-9]+$ ]] && ((Parallel_Value >= 1 && Parallel_Value <= 10)); then
   break
   else
-  echo "\033[0;31mError: Please enter a number between 1 and 10.\033[0m"
+  echo -e "\033[0;31mError: Please enter a number between 1 and 10.\033[0m"
   fi
   done
   echo "You chose $Parallel_Value download threads."
@@ -193,7 +193,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid choice:\033[0m '$kernel'\033[0;31m. Please try again.\033[0m"
+  echo -e "\033[0;31mInvalid choice:\033[0m '$kernel'\033[0;31m. Please try again.\033[0m"
   ;;
   esac
   done
@@ -213,9 +213,9 @@ fdisk -l /dev/$disk
   echo "0) Server [Tested]"
   echo "1) KDE Plasma [Tested]"
   echo "2) Gnome [Tested]"
-  echo "3) LXDE \033[0;31m[Unknown]\033[0m"
-  echo "4) Mate \033[0;31m[Unknown]\033[0m"
-  echo "5) XFCE \033[0;31m[Unknown]\033[0m"
+  echo -e "3) LXDE \033[0;31m[Unknown]\033[0m"
+  echo -e "4) Mate \033[0;31m[Unknown]\033[0m"
+  echo -e "5) XFCE \033[0;31m[Unknown]\033[0m"
   while true; do
   read -p "Desktop Environment [0-5] = " de
   de=${de:-0} # Default to 0 if no input
@@ -223,7 +223,7 @@ fdisk -l /dev/$disk
   echo "You selected option $de."
   break
   else
-  echo "\033[0;31mInvalid input. Please enter a number between 0 and 5.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter a number between 0 and 5.\033[0m"
   fi
   done
   #END CHOOSING DESKTOP ENVIRONMENT
@@ -356,7 +356,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
@@ -374,7 +374,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
@@ -393,7 +393,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
@@ -415,7 +415,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
@@ -436,7 +436,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
@@ -469,7 +469,7 @@ fdisk -l /dev/$disk
   break
   ;;
   *)
-  echo "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
+  echo -e "\033[0;31mInvalid input. Please enter 'y' for yes or 'n' for no.\033[0m"
   ;;
   esac
   done
