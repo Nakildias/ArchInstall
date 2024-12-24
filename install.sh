@@ -1,5 +1,5 @@
 #!/bin/bash
-  clear
+  #CHECK IF SYSTEM IS USING EFI
   echo "Welcome to Arch Install by Nakildias"
   echo "Checking EFI"
   if [ ! -e "/sys/firmware/efi/fw_platform_size" ]; then
@@ -11,91 +11,89 @@
   fi
   echo -e "\033[0;32mEFI firmware available\033[0m"
   read -p "Press ENTER to continue"
-  clear
   
-################################################ Testing
-# Retrieve a list of valid disks
-valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3))
+  #RETRIEVE LIST OF DISKS
+  valid_disks=($(fdisk -l | awk '/^Disk \/dev\// {gsub(":", "", $2); print $2}' | cut -d'/' -f3))
 
-# Check if any disks are available
-if [ ${#valid_disks[@]} -eq 0 ]; then
+  #QUIT IF NO DISK ARE PRESENT
+  if [ ${#valid_disks[@]} -eq 0 ]; then
   echo -e "\033[0;31mNo valid disks found. Exiting.\033[0m"
   exit 1
-fi
+  fi
 
-# Display available disks
-echo -e "\033[0;34mAvailable disks:\033[0m ${valid_disks[@]}"
+  #DISPLAY FOUND DISKS TO USER
+  echo -e "\033[0;34mAvailable disks:\033[0m ${valid_disks[@]}"
 
-# Loop to get a valid disk input
-while true; do
+  #ASK USER FOR THE DISK TO USE
+  while true; do
   read -p "Disk = " disk
   if [[ " ${valid_disks[@]} " =~ " ${disk} " ]]; then
-    echo -e "\033[0;32mYou selected a valid disk:\033[0m $disk"
-    break
+  echo -e "\033[0;32mYou selected a valid disk:\033[0m $disk"
+  break
   else
-    echo -e "\033[0;31mInvalid disk. Please try again.\033[0m"
+  echo -e "\033[0;31mInvalid disk. Please try again.\033[0m"
   fi
-done
+  done
 
-# Confirm the user wants to erase the disk
-echo -e "\033[0;31mWarning: This will erase all data on /dev/$disk.\033[0m"
-read -p "Are you sure? (yes/no): " confirmation
-if [[ "$confirmation" != "yes" ]]; then
+  #CONFIRM IF USER AGREE TO ERASE THE SELECTED DISK
+  echo -e "\033[0;31mWarning: This will erase all data on /dev/$disk.\033[0m"
+  read -p "Are you sure? (yes/no): " confirmation
+  if [[ "$confirmation" != "yes" ]]; then
   echo -e "\033[0;31mOperation canceled.\033[0m"
   exit 1
-fi
+  fi
 
-# Check for existing partitions and delete them
-echo "Checking for existing partitions on /dev/$disk..."
-partitions=($(lsblk -np | grep "/dev/$disk" | awk '{print $1}'))
-if [ ${#partitions[@]} -gt 0 ]; then
+  #DELETE EXISTING PARTITION ON THE SELECTED DISK
+  echo "Checking for existing partitions on /dev/$disk..."
+  partitions=($(lsblk -np | grep "/dev/$disk" | awk '{print $1}'))
+  if [ ${#partitions[@]} -gt 0 ]; then
   echo -e "\033[0;32mFound partitions:\033[0m ${partitions[@]}"
-    echo 1 | parted /dev/$disk rm
+  echo 1 | parted /dev/$disk rm
   echo -e "\033[0;32mAll existing partitions on\033[0m $disk \033[0;32mwere deleted.\033[0m"
-else
+  else
   echo -e "\033[0;31mNo existing partitions found on /dev/$disk.\033[0m"
-fi
+  fi
 
-# Ask for the swap size
-while true; do
+  #ASK USER FOR SWAP SIZE
+  #NOTE//NEED TO MAKE THIS AN OPTION
+  while true; do
   read -p "Enter Swap Size (e.g., 2G, 512M): " SwapSize
   if [[ $SwapSize =~ ^[0-9]+[MG]$ ]]; then
-    echo -e "\033[0;32mSwap size set to:\033[0m $SwapSize"
-    break
+  echo -e "\033[0;32mSwap size set to:\033[0m $SwapSize"
+  break
   else
-    echo -e "\033[0;31mInvalid swap size. Please enter a size in the format '2G' or '512M'.\033[0m"
+  echo -e "\033[0;31mInvalid swap size. Please enter a size in the format '2G' or '512M'.\033[0m"
   fi
-done
+  done
 
-# Partition the disk
-echo "Partitioning /dev/$disk..."
-(
-echo g # Create a new GPT partition table
-echo n # New partition
-echo 1 # Partition number 1
-echo   # Default - start at beginning of disk
-echo +1G # End at 1GB
+  #PARTITIONING THE SELECTED DISK
+  echo "Partitioning /dev/$disk..."
+  (
+  echo g # Create a new GPT partition table
+  echo n # New partition
+  echo 1 # Partition number 1
+  echo   # Default - start at beginning of disk
+  echo +1G # End at 1GB
 
-echo n # New partition
-echo 2 # Partition number 2
-echo   # Default - start immediately after previous partition
-echo +$SwapSize # End at SwapSize
+  echo n # New partition
+  echo 2 # Partition number 2
+  echo   # Default - start immediately after previous partition
+  echo +$SwapSize # End at SwapSize
 
-echo n # New partition
-echo 3 # Partition number 3
-echo   # Default - start immediately after previous partition
-echo   # Default - use the rest of the disk
+  echo n # New partition
+  echo 3 # Partition number 3
+  echo   # Default - start immediately after previous partition
+  echo   # Default - use the rest of the disk
 
-echo w # Write the changes
-) | fdisk /dev/$disk
+  echo w # Write the changes
+  ) | fdisk /dev/$disk
 
-# Display the partition table
-echo -e "\033[0;32mPartitioning complete.\033[0m"
-echo "Updated disk layout:"
-fdisk -l /dev/$disk
-################################################################ TESTING
+  #DISPLAY PARTITION TABLE OF THE SELECTED DISK
+  echo -e "\033[0;32mPartitioning complete.\033[0m"
+  echo "Updated disk layout:"
+  fdisk -l /dev/$disk
 
-  clear
+  #CHECK IF DISK IS OF TYPE NVME
   if [[ "$disk" == *"nvme"* ]]; then
   echo "The disk type is NVMe"
   Partition_Boot=${Partition_Boot:-$disk\p1}
@@ -107,31 +105,8 @@ fdisk -l /dev/$disk
   Partition_Swap=${Partition_Swap:-$disk\2}
   Partition_Root=${Partition_Root:-$disk\3}
   fi
-  #while true; do
-  #read -p "Is the targeted drive nvme? y/n = " nvme
-  #case "${nvme,,}" in
-  #y)
-  #echo "NVME = True."
-  #Partition_Boot=${Partition_Boot:-$disk\p1}
-  #Partition_Swap=${Partition_Swap:-$disk\p2}
-  #Partition_Root=${Partition_Root:-$disk\p3}
-  #break
-  #;;
-  #n)
-  #echo "NVME = False."
-  #Partition_Boot=${Partition_Boot:-$disk\1}
-  #Partition_Swap=${Partition_Swap:-$disk\2}
-  #Partition_Root=${Partition_Root:-$disk\3}
-  #break
-  #;;
-  #*)
-  #echo "Invalid input. Please enter 'y' for yes or 'n' for no."
-  #;;
-  #esac
-  #done
-  #Partition_Boot=${Partition_Boot:-$disk\1}
-  #Partition_Swap=${Partition_Swap:-$disk\2}
-  #Partition_Root=${Partition_Root:-$disk\3}
+
+  #PARTITIONING THE DISK
   fdisk -l
   echo ""
   echo "$Partition_Boot (BOOT) | $Partition_Swap (SWAP) | $Partition_Root (ROOT)"
@@ -142,17 +117,18 @@ fdisk -l /dev/$disk
   mkswap /dev/$Partition_Swap
   mkfs.ext4 /dev/$Partition_Root
   echo -e "\033[0;32mPartitioning Done\033[0m"
+
+
+  #MOUNTING THE PARTITIONS
   echo "Mounting partitions..."
   mount /dev/$Partition_Root /mnt
   mount --mkdir /dev/$Partition_Boot /mnt/boot
   swapon /dev/$Partition_Swap
   echo -e "\033[0;32mMounting Completed\033[0m"
-  echo "Pacstraping..."
-  #
-  #
-  #BEGIN ENABLE PARALLEL DOWNLOADS OPTION
+
+  #PACMAN MULTI-THREAD CONFIGURATION
   while true; do
-  read -p "Enable Parallel Downloads for pacstrap? y/n = " Parallel
+  read -p "Enable Parallel Downloads for pacstrap and the arch install? y/n = " Parallel
   case "${Parallel,,}" in
   y)
   echo -e "\033[0;32mParallel Downloads enabled.\033[0m"
@@ -167,8 +143,6 @@ fdisk -l /dev/$disk
   ;;
   esac
   done
-  #END ENABLE PARALLEL DOWNLOADS OPTION
-  #BEGIN CHOOSING PARALLEL THREADS COUNT
   if [ "${Parallel,,}" = "y" ]; then
   while true; do
   read -p "How many download threads? 1-10 (default = 5) = " Parallel_Value
@@ -183,8 +157,8 @@ fdisk -l /dev/$disk
   echo "You chose $Parallel_Value download threads."
   sed -i 37s/.*/ParallelDownloads\ =\ $Parallel_Value/ /etc/pacman.conf
   fi
-  #END CHOOSING PARALLEL THREADS COUNT
-  #BEGIN CHOOSING KERNEL
+
+  #ASK USER TO CHOOSE KERNEL
   while true; do
   echo "Choose your kernel (valid options: linux, linux-lts, linux-zen)"
   read -p "Kernel (default = linux): " kernel
@@ -199,18 +173,9 @@ fdisk -l /dev/$disk
   ;;
   esac
   done
-  #END CHOOSING KERNEL
-  #BEGIN ENABLE NVIDIA OPTION (WIP)
-  #echo "NVIDIA?"
-  #read -p "[y/n]) = " nvidia
-  #if [ "${nvidia,,}" = "y" ]; then
-  #video_driver=${video_driver:-nvidia}
-  #fi
-  #if [ "${nvidia,,}" = "n" ]; then 
-  #video_driver=${video_driver:-}
-  #fi
-  #END ENABLE NVIDIA OPTION (WIP)
-  #BEGIN CHOOSING DESKTOP ENVIRONMENT
+  
+
+  #ASK USER TO CHOOSE DESKTOP ENVIRONMENT
   echo "Choose your Desktop Environment"
   echo -e "0) Server \033[0;32m[Tested]\033[0m"
   echo -e "1) KDE Plasma \033[0;32m[Tested]\033[0m"
@@ -228,8 +193,8 @@ fdisk -l /dev/$disk
   echo -e "\033[0;31mInvalid input. Please enter a number between 0 and 5.\033[0m"
   fi
   done
-  #END CHOOSING DESKTOP ENVIRONMENT
-  #BEGIN LIST OF AVAILIBLE PACSTRAP FOR EVERY DESKTOP ENVIRONMENT CHOICE
+  
+  #DESKTOP ENVIRONMENT LIST
   if [ "${de,,}" = "0" ]; then
   pacstrap -K /mnt base $kernel mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh reflector
   fi
@@ -253,15 +218,13 @@ fdisk -l /dev/$disk
   if [ "${de,,}" = "5" ]; then
   pacstrap -K /mnt base $kernel mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector xfce4 lightdm xfce4-terminal
   fi
-  #END LIST OF AVAILIBLE PACSTRAP FOR EVERY DESKTOP ENVIRONMENT CHOICE
-  #BEGIN GENERATE FSTAB
+
+  #GENERATE FSTAB
   echo "Generating fstab"
   genfstab /mnt >> /mnt/etc/fstab
-  #END GENERATE FSTAB
-  #BEGIN MOVING BASHRC THEME AND PART2 OF SCRIPT
 
-######### EXPERIMENTAL ##########
-
+  #TIMEZONE SETUP
+  #NOTE: NEEDS SOME WORK...
   echo "Setting up Time Zone"
   echo "Enter Region"
   echo "Example & Default = America"
@@ -290,6 +253,8 @@ fdisk -l /dev/$disk
   fi
   echo "Generating Locale..."
   arch-chroot /mnt locale-gen
+
+  #ASK USER FOR HOSTNAME
   read -p "hostname : " hostname
   if [ -f "/etc/hostname" ]; then
   echo "Removing /etc/hostname because it already exists"
@@ -298,53 +263,26 @@ fdisk -l /dev/$disk
   arch-chroot /mnt touch /etc/hostname
   echo "$hostname" > /etc/hostname
   echo "/etc/hostname was created with hostname [$hostname]"
+
+  #ASK USER FOR ROOT PASSWORD
   echo "Enter password for root"
   arch-chroot /mnt passwd
+
+  #ASK USER FOR A USERNAME, PASSWORD & ENABLE SUDO PERMISSION FOR USER
   echo "Creating Regular User"
   read -p "Enter your desired username : " username
   arch-chroot /mnt useradd -m -G wheel -s /bin/bash $username
   arch-chroot /mnt passwd $username
   echo "Enabling SU Permissions for $username"
   arch-chroot /mnt sed -i 125s/#\ // /etc/sudoers
-  #fdisk -l
-  #read -p "Disk for grub example sda = " disk
-  #BEGIN ENABLE PARALLEL DOWNLOADS OPTION
-  #while true; do
-  #read -p "Enable Parallel Downloads for pacstrap? [y/n] = " Parallel
-  #case "${Parallel,,}" in
-  #y)
-  #echo "Parallel Downloads enabled."
-  #break
-  #;;
-  #n)
-  #echo "Parallel Downloads not enabled."
-  #break
-  #;;
-  #*)
-  #echo "Invalid input. Please enter 'y' for yes or 'n' for no."
-  #;;
-  #esac
-  #done
-  #END ENABLE PARALLEL DOWNLOADS OPTION
-  #BEGIN CHOOSING PARALLEL THREADS COUNT
-  #if [ "${Parallel,,}" = "y" ]; then
-  #while true; do
-  #read -p "How many download threads? 1-10 (default = 5) = " Parallel_Value
-  #Parallel_Value=${Parallel_Value:-5}
-  # Check if input is a valid number between 1 and 10
-  #if [[ "$Parallel_Value" =~ ^[0-9]+$ ]] && ((Parallel_Value >= 1 && Parallel_Value <= 10)); then
-  #break
-  #else
-  #echo "Error: Please enter a number between 1 and 10."
-  #fi
-  #done
-  #echo "You chose $Parallel_Value download threads."
+
+  #SET MULTI-THREAD DOWNLOAD OPTION WITH VALUES ASKED EARLIER
   if [ "${Parallel,,}" = "y" ]; then
   arch-chroot /mnt sed -i 37s/.*/ParallelDownloads\ =\ $Parallel_Value/ /etc/pacman.conf
   echo "Setting downloads threads to $Parallel_Value for $username"
   fi
-  #END CHOOSING PARALLEL THREADS COUNT
-
+  
+  #ASK USER IF HE/SHE WANTS TO ENABLE VARIOUS SERVICES
   while true; do
   read -p "Enable Network Manager Service? [y/n] = " nm
   case "${nm,,}" in
@@ -401,8 +339,6 @@ fdisk -l /dev/$disk
   done
   fi
 
-  #if command -v gdm &> /dev/null; then
-  # Check if gdm service exists
   if [[ $de =~ [234] ]]; then
   while true; do
   read -p "Enable GDM Service? [y/n] = " gdm
@@ -422,7 +358,6 @@ fdisk -l /dev/$disk
   esac
   done
   fi
-  
   
   if [[ $de =~ [5] ]]; then
   while true; do
@@ -444,6 +379,7 @@ fdisk -l /dev/$disk
   done
   fi
 
+  #ASK USER IF HE/SHE WANTS OH-MY-BASH
   while true; do
   read -p "Install oh-my-bash? [y/n] = " omb
   case "${omb,,}" in
@@ -475,18 +411,15 @@ fdisk -l /dev/$disk
   ;;
   esac
   done
-  
+
+  #INSTALLING GRUB FOR EFI
   echo "Installing Grub to /boot"
   arch-chroot /mnt grub-install --efi-directory=/boot
   echo "Configuring Grub /boot/grub/grub.cfg"
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
   echo -e "\033[0;32mGrub Installed.\033[0m"
 
-  #arch-chroot /mnt git clone https://github.com/RomjanHossain/Grub-Themes.git
-  #arch-chroot /mnt bash /Grub-Themes/install.sh
-
-
-  clear
+  #FINISH INSTALLATION BY PRESSING "ENTER"
   read -p "Press ENTER to finish the installation"
   shutdown now
-# Written by Nakildias
+  # Written by Nakildias
