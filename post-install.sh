@@ -99,27 +99,3 @@
   ;;
   esac
   done
-
-  while true; do
-  read -p "Install MacSequoiaDark Theme?(REQUIRES KDE) [y/n] = " kt
-  case "${kt,,}" in
-  y)
-  echo "MacSequoia will be downloaded."
-  sudo pacman -Sy --noconfirm wget kvantum
-  yay -Yg konsave
-  wget https://filebrowser.nakildias.com/api/public/dl/AIwMhtlD/media/SSD2/kdedefaults/MacSonoma.knsv
-  konsave -i ./MacSonoma.knsv
-  echo "Theme added, you can now change it in your plasma settings."
-  sleep 5
-
-  break
-  ;;
-  n)
-  echo "MacSequoiaDark will not be installed."
-  break
-  ;;
-  *)
-  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
-  ;;
-  esac
-  done
