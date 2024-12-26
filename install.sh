@@ -54,6 +54,18 @@
   echo -e "\033[0;31mNo existing partitions found on /dev/$disk.\033[0m"
   fi
 
+
+  #ASK USER FOR BOOT SIZE
+  while true; do
+  read -p "Enter Boot Size (Should be between 512M & 2G): " BootSize
+  if [[ $BootSize =~ ^[0-9]+[MG]$ ]]; then
+  echo -e "\033[0;32mBoot size set to:\033[0m $BootSize"
+  break
+  else
+  echo -e "\033[0;31mInvalid boot size. Please enter a size in the format '2G' or '512M'.\033[0m"
+  fi
+  done
+
   #ASK USER FOR SWAP SIZE
   #NOTE//NEED TO MAKE THIS AN OPTION
   while true; do
@@ -73,7 +85,7 @@
   echo n # New partition
   echo 1 # Partition number 1
   echo   # Default - start at beginning of disk
-  echo +1G # End at 1GB
+  echo +$BootSize # End at $BootSize
 
   echo n # New partition
   echo 2 # Partition number 2
