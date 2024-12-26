@@ -196,27 +196,27 @@
   
   #DESKTOP ENVIRONMENT LIST
   if [ "${de,,}" = "0" ]; then
-  pacstrap -K /mnt base $kernel $ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh reflector
+  pacstrap -K /mnt base $kernel amd_ucode intel_ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop git openssh reflector
   fi
   #KDE
   if [ "${de,,}" = "1" ]; then
-  pacstrap -K /mnt base $kernel $ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector plasma-meta plasma-pa sddm konsole dolphin gwenview flatpak p7zip partitionmanager kcalc spectacle 
+  pacstrap -K /mnt base $kernel amd_ucode intel_ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector plasma-meta plasma-pa sddm konsole dolphin gwenview flatpak p7zip partitionmanager kcalc spectacle 
   fi
   #GNOME
   if [ "${de,,}" = "2" ]; then
-  pacstrap -K /mnt base $kernel $ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector gnome gdm gnome-terminal
+  pacstrap -K /mnt base $kernel amd_ucode intel_ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector gnome gdm gnome-terminal
   fi
   #LXDE
   if [ "${de,,}" = "3" ]; then
-  pacstrap -K /mnt base $kernel $ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector lxde gdm lxterminal
+  pacstrap -K /mnt base $kernel amd_ucode intel_ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector lxde gdm lxterminal
   fi
   #MATE
   if [ "${de,,}" = "4" ]; then
-  pacstrap -K /mnt base $kernel $ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector mate gdm mate-terminal
+  pacstrap -K /mnt base $kernel amd_ucode intel_ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector mate gdm mate-terminal
   fi
   #XFCE
   if [ "${de,,}" = "5" ]; then
-  pacstrap -K /mnt base $kernel $ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector xfce4 lightdm xfce4-terminal
+  pacstrap -K /mnt base $kernel amd_ucode intel_ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector xfce4 lightdm xfce4-terminal
   fi
 
   #GENERATE FSTAB
