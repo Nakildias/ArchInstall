@@ -138,6 +138,9 @@
   swapon /dev/$Partition_Swap
   echo -e "\033[0;32mMounting Completed\033[0m"
 
+  #UPDATE KEYRING TO FIX CORRUPTED PACKAGE ERROR
+  pacman -Sy archlinux-keyring
+
   #PACMAN MULTI-THREAD CONFIGURATION
   while true; do
   read -p "Enable Parallel Downloads for pacstrap and the arch install? y/n = " Parallel
