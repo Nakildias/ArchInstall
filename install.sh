@@ -139,6 +139,7 @@
   echo -e "\033[0;32mMounting Completed\033[0m"
 
   #UPDATE KEYRING TO FIX CORRUPTED PACKAGE ERROR
+  echo "Updating archlinux-keyring..."
   pacman -Sy archlinux-keyring
 
   #PACMAN MULTI-THREAD CONFIGURATION
