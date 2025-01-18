@@ -140,7 +140,7 @@
 
   #UPDATE KEYRING TO FIX CORRUPTED PACKAGE ERROR
   echo "Updating archlinux-keyring..."
-  pacman -Sy archlinux-keyring
+  pacman -Sy archlinux-keyring --noconfirm
 
   #PACMAN MULTI-THREAD CONFIGURATION
   while true; do
@@ -232,7 +232,7 @@
   fi
   #XFCE
   if [ "${de,,}" = "5" ]; then
-  pacstrap -K /mnt base $kernel amd-ucode intel-ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector xfce4 lightdm xfce4-terminal
+  pacstrap -K /mnt base $kernel amd-ucode intel-ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch bashtop firefox kate git openssh reflector xfce4 lightdm xfce4-terminal lightdm-gtk-greeter lightdm-gtk-greeter-settings
   fi
 
   #GENERATE FSTAB
