@@ -6,6 +6,8 @@
 #
 ##  Step 2 - Install Git and Clone the repo
 > pacman -Sy git
+# If you are having issues with corrupted packages update the arch keyrings.
+> pacman -Sy archlinux-keyring
 #
 > git clone https://github.com/Nakildias/ArchInstall.git
 #
