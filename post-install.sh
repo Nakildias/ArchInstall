@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
   while true; do
@@ -92,6 +93,45 @@
   ;;
   n)
   echo "p7zip-gui will not be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
+    while true; do
+  read -p "Install Gaming Essentials? [y/n] = " lo
+  case "${lo,,}" in
+  y)
+  echo "Gaming Essentials will be installed."
+  sudo pacman -Sy --noconfirm steam mesa
+  flatpak install com.discordapp.DiscordCanary
+  flatpak install com.github.wwmm.easyeffects
+  flatpak install com.obsproject.Studio
+  break
+  ;;
+  n)
+  echo "Gaming Essentials will not be installed."
+  break
+  ;;
+  *)
+  echo "Invalid input. Please enter 'y' for yes or 'n' for no."
+  ;;
+  esac
+  done
+
+    while true; do
+  read -p "Nvidia Essentials? [y/n] = " lo
+  case "${lo,,}" in
+  y)
+  echo "Nvidia Essentials will be installed."
+  sudo pacman -Sy --noconfirm nvidia nvidia-prime
+  break
+  ;;
+  n)
+  echo "Gaming Essentials will not be installed."
   break
   ;;
   *)
