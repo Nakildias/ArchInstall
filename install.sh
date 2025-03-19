@@ -216,7 +216,7 @@
   fi
   #KDE
   if [ "${de,,}" = "1" ]; then
-  pacstrap -K /mnt base $kernel amd-ucode intel-ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch btop firefox kate git openssh reflector plasma-desktop sddm konsole dolphin gwenview flatpak p7zip partitionmanager kcalc spectacle 
+  pacstrap -K /mnt base $kernel amd-ucode intel-ucode mesa linux-firmware base-devel nano efibootmgr networkmanager grub wget fastfetch btop firefox kate git openssh reflector kscreen discover plasma-desktop sddm konsole dolphin gwenview flatpak p7zip partitionmanager kcalc spectacle 
   fi
   #GNOME
   if [ "${de,,}" = "2" ]; then
