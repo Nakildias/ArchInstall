@@ -67,8 +67,10 @@ cleanup() {
     info "Performing cleanup..."
     # Attempt to unmount everything in reverse order in case of script failure
     # Use &>/dev/null to suppress errors if already unmounted
-    umount -R /mnt/boot &>/dev/null
-    umount -R /mnt &>/dev/null
+    # Unmount /mnt/boot first if it exists
+    mountpoint -q /mnt/boot && umount -R /mnt/boot &>/dev/null
+    # Unmount /mnt if it exists
+    mountpoint -q /mnt && umount -R /mnt &>/dev/null
     # Deactivate swap if it was activated and variable exists
     # Use parameter expansion to check if variable is set and not empty
     [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]] && swapoff "${SWAP_PARTITION}" &>/dev/null
@@ -91,20 +93,20 @@ main() {
 
     # User configuration gathering
     select_disk
-    configure_partitioning       # Determines PART_PREFIX
+    configure_partitioning        # Determines PART_PREFIX
     configure_hostname_user
     select_kernel
     select_desktop_environment
-    select_optional_packages     # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
+    select_optional_packages      # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
 
     # Perform installation steps
-    configure_mirrors            # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
-    partition_and_format         # Uses correct partition paths
-    mount_filesystems            # Uses correct partition paths
-    install_base_system          # Installs packages including Steam if selected
-    configure_installed_system   # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
-    install_bootloader           # Uses correct target disk
-    install_oh_my_zsh            # Optional
+    configure_mirrors             # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    partition_and_format          # Uses correct partition paths (MODIFIED)
+    mount_filesystems             # Uses correct partition paths
+    install_base_system           # Installs packages including Steam if selected
+    configure_installed_system    # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    install_bootloader            # Uses correct target disk
+    install_oh_my_zsh             # Optional
 
     # Finalization
     final_steps
@@ -236,7 +238,7 @@ configure_partitioning() {
         # For NVMe/eMMC disks, partitions are like /dev/nvme0n1p1, /dev/mmcblk0p1
         PART_PREFIX="${TARGET_DISK}p"
     else
-        # For SATA/SCSI/IDE disks, partitions are like /dev/sda1, /dev/sdb2
+        # For SATA/SCSI/IDE/VDA disks, partitions are like /dev/sda1, /dev/vda2
         PART_PREFIX="${TARGET_DISK}"
     fi
     # PART_PREFIX will correctly form partition names when the number is appended.
@@ -468,88 +470,117 @@ configure_mirrors() {
     pacman -Sy archlinux-keyring --noconfirm
 }
 
+# ############################################################################
+# ############## FUNCTION MODIFIED TO MEET USER REQUIREMENT ##################
+# ############################################################################
 partition_and_format() {
-    info "Partitioning ${TARGET_DISK} for ${BOOT_MODE}..."
+    info "Partitioning ${TARGET_DISK} for ${BOOT_MODE} (Root=p1, Boot=p2, Swap=p3)..."
 
-    # Partitioning using parted
+    # Use MiB/GiB for parted calculations as it's more precise than M/G sometimes
+    local boot_size_parted=$(echo "$BOOT_PART_SIZE" | sed 's/M/MiB/g; s/G/GiB/g')
+    local swap_size_parted=$(echo "$SWAP_PART_SIZE" | sed 's/M/MiB/g; s/G/GiB/g')
+
+    # --- Partitioning using parted ---
+    # Goal: Partition 1 = Root (/), Partition 2 = Boot (/boot), Partition 3 = Swap (optional)
     if [[ "$BOOT_MODE" == "UEFI" ]]; then
         info "Creating GPT partition table for UEFI on ${TARGET_DISK}..."
-        # UEFI Partitioning: ESP (fat32), Swap (optional), Root (ext4)
-        parted -s "${TARGET_DISK}" -- \
-            mklabel gpt \
-            mkpart ESP fat32 1MiB "${BOOT_PART_SIZE}" \
-            set 1 esp on \
-            $( [[ -n "$SWAP_PART_SIZE" ]] && echo "mkpart primary linux-swap ${BOOT_PART_SIZE} -${SWAP_PART_SIZE}" ) \
-            mkpart primary ext4 $( [[ -n "$SWAP_PART_SIZE" ]] && echo "-${SWAP_PART_SIZE}" || echo "${BOOT_PART_SIZE}" ) 100%
-        check_status "Partitioning disk ${TARGET_DISK} with GPT for UEFI"
-        # Assign partition numbers for UEFI/GPT using calculated PART_PREFIX
-        BOOT_PARTITION="${PART_PREFIX}1"
         if [[ -n "$SWAP_PART_SIZE" ]]; then
-            SWAP_PARTITION="${PART_PREFIX}2"
-            ROOT_PARTITION="${PART_PREFIX}3"
-        else
-            SWAP_PARTITION=""
-            ROOT_PARTITION="${PART_PREFIX}2"
+            info "Layout: Root (p1, Ext4), Boot (p2, ESP/FAT32), Swap (p3)"
+            # Root: Starts at 1MiB, ends before Boot + Swap size from the end
+            # Boot: Starts after Root, fixed size BOOT_PART_SIZE
+            # Swap: Starts after Boot, fills remaining space until the end marker (-${swap_size_parted})
+            parted -s "${TARGET_DISK}" -- \
+                mklabel gpt \
+                mkpart primary ext4 1MiB "-$(echo ${boot_size_parted} + ${swap_size_parted} | bc)" \
+                mkpart ESP fat32 "-$(echo ${boot_size_parted} + ${swap_size_parted} | bc)" "-${swap_size_parted}" \
+                set 2 esp on \
+                mkpart primary linux-swap "-${swap_size_parted}" 100%
+             check_status "Partitioning disk ${TARGET_DISK} with GPT (Root, Boot, Swap)"
+        else # No Swap
+            info "Layout: Root (p1, Ext4), Boot (p2, ESP/FAT32)"
+            parted -s "${TARGET_DISK}" -- \
+                mklabel gpt \
+                mkpart primary ext4 1MiB "-${boot_size_parted}" \
+                mkpart ESP fat32 "-${boot_size_parted}" 100% \
+                set 2 esp on
+            check_status "Partitioning disk ${TARGET_DISK} with GPT (Root, Boot)"
         fi
+        # Assign partition numbers based on the new fixed order
+        ROOT_PARTITION="${PART_PREFIX}1"
+        BOOT_PARTITION="${PART_PREFIX}2"
+        [[ -n "$SWAP_PART_SIZE" ]] && SWAP_PARTITION="${PART_PREFIX}3" || SWAP_PARTITION=""
+
     else # BIOS
         info "Creating MBR partition table for BIOS on ${TARGET_DISK}..."
-        # Ensure any previous GPT is gone (parted mklabel msdos might not be enough)
+        # Ensure any previous GPT is gone
         sgdisk --zap-all "${TARGET_DISK}" &>/dev/null || wipefs --all --force "${TARGET_DISK}" &>/dev/null || true
-        # BIOS Partitioning: Boot (ext4, boot flag), Swap (optional), Root (ext4)
-        parted -s "${TARGET_DISK}" -- \
-            mklabel msdos \
-            mkpart primary ext4 1MiB "${BOOT_PART_SIZE}" \
-            set 1 boot on \
-            $( [[ -n "$SWAP_PART_SIZE" ]] && echo "mkpart primary linux-swap ${BOOT_PART_SIZE} -${SWAP_PART_SIZE}" ) \
-            mkpart primary ext4 $( [[ -n "$SWAP_PART_SIZE" ]] && echo "-${SWAP_PART_SIZE}" || echo "${BOOT_PART_SIZE}" ) 100%
-        check_status "Partitioning disk ${TARGET_DISK} with MBR for BIOS"
-        # Assign partition numbers for BIOS/MBR using calculated PART_PREFIX
-        BOOT_PARTITION="${PART_PREFIX}1"
         if [[ -n "$SWAP_PART_SIZE" ]]; then
-            SWAP_PARTITION="${PART_PREFIX}2"
-            ROOT_PARTITION="${PART_PREFIX}3"
-        else
-            SWAP_PARTITION=""
-            ROOT_PARTITION="${PART_PREFIX}2"
+             info "Layout: Root (p1, Ext4), Boot (p2, Ext4 + boot flag), Swap (p3)"
+             parted -s "${TARGET_DISK}" -- \
+                mklabel msdos \
+                mkpart primary ext4 1MiB "-$(echo ${boot_size_parted} + ${swap_size_parted} | bc)" \
+                mkpart primary ext4 "-$(echo ${boot_size_parted} + ${swap_size_parted} | bc)" "-${swap_size_parted}" \
+                set 2 boot on \
+                mkpart primary linux-swap "-${swap_size_parted}" 100%
+             check_status "Partitioning disk ${TARGET_DISK} with MBR (Root, Boot, Swap)"
+        else # No Swap
+            info "Layout: Root (p1, Ext4), Boot (p2, Ext4 + boot flag)"
+             parted -s "${TARGET_DISK}" -- \
+                mklabel msdos \
+                mkpart primary ext4 1MiB "-${boot_size_parted}" \
+                mkpart primary ext4 "-${boot_size_parted}" 100% \
+                set 2 boot on
+            check_status "Partitioning disk ${TARGET_DISK} with MBR (Root, Boot)"
         fi
+        # Assign partition numbers based on the new fixed order
+        ROOT_PARTITION="${PART_PREFIX}1"
+        BOOT_PARTITION="${PART_PREFIX}2"
+        [[ -n "$SWAP_PART_SIZE" ]] && SWAP_PARTITION="${PART_PREFIX}3" || SWAP_PARTITION=""
     fi
 
     # Reread partition table to ensure kernel sees changes
     partprobe "${TARGET_DISK}" &>/dev/null || true
     sleep 2 # Give kernel another moment
 
-    info "Disk layout planned:"
+    info "Disk layout created (confirming partitions exist):"
+    info " Root: ${ROOT_PARTITION}"
     info " Boot: ${BOOT_PARTITION}"
     [[ -n "$SWAP_PARTITION" ]] && info " Swap: ${SWAP_PARTITION}"
-    info " Root: ${ROOT_PARTITION}"
     lsblk "${TARGET_DISK}" # Show the result
     confirm "Proceed with formatting these partitions?" || { error "Formatting cancelled."; exit 1; }
 
-    # --- Formatting ---
+    # --- Formatting (Based on the NEW partition assignment) ---
     info "Formatting partitions..."
-    # Use partition variables directly, as they contain the full /dev/... path
+
+    # Format Root (Partition 1) as ext4
+    mkfs.ext4 -F "${ROOT_PARTITION}"
+    check_status "Formatting Root partition ${ROOT_PARTITION} as ext4"
+
+    # Format Boot (Partition 2) based on boot mode
     if [[ "$BOOT_MODE" == "UEFI" ]]; then
         mkfs.fat -F32 "${BOOT_PARTITION}"
-        check_status "Formatting EFI partition ${BOOT_PARTITION} as FAT32"
-    else # BIOS/MBR - Format /boot as ext4
-        mkfs.ext4 -F "${BOOT_PARTITION}" # Use -F to force if needed
-        check_status "Formatting Boot partition ${BOOT_PARTITION} as ext4"
+        check_status "Formatting EFI Boot partition ${BOOT_PARTITION} as FAT32"
+    else # BIOS/MBR - Format Boot partition as ext4
+        mkfs.ext4 -F "${BOOT_PARTITION}"
+        check_status "Formatting BIOS Boot partition ${BOOT_PARTITION} as ext4"
     fi
 
+    # Format Swap (Partition 3, if it exists)
     if [[ -n "$SWAP_PARTITION" ]]; then
         mkswap "${SWAP_PARTITION}"
         check_status "Formatting Swap partition ${SWAP_PARTITION}"
     fi
 
-    mkfs.ext4 -F "${ROOT_PARTITION}" # Use -F to force if needed
-    check_status "Formatting Root partition ${ROOT_PARTITION} as ext4"
-
-    success "Partitions formatted."
+    success "Partitions formatted according to Root=p1, Boot=p2, Swap=p3 scheme."
 }
+# ############################################################################
+# ####################### END OF MODIFIED FUNCTION ###########################
+# ############################################################################
+
 
 mount_filesystems() {
     info "Mounting filesystems..."
-    # Use partition variables directly
+    # Use partition variables directly (now assigned as Root=p1, Boot=p2, Swap=p3)
     mount "${ROOT_PARTITION}" /mnt
     check_status "Mounting root partition ${ROOT_PARTITION} on /mnt"
 
@@ -568,7 +599,7 @@ mount_filesystems() {
     # Verify mounts
     info "Current mounts:"
     findmnt /mnt
-    if [[ -d /mnt/boot ]]; then findmnt /mnt/boot; fi
+    if mountpoint -q /mnt/boot; then findmnt /mnt/boot; fi
     if [[ -n "$SWAP_PARTITION" ]]; then swapon --show; fi
 }
 
@@ -587,7 +618,7 @@ install_base_system() {
 
     # Base packages list
     local base_pkgs=(
-        "base" "$SELECTED_KERNEL" "linux-firmware" "base-devel" "grub"
+        "base" "$SELECTED_KERNEL" "linux-firmware" "base-devel" "grub" "bc" # Added bc for parted calculations
         "networkmanager" "nano" "vim" "git" "wget" "curl" "reflector" "zsh"
         "btop" "fastfetch" "man-db" "man-pages" "texinfo" # Common utilities
     )
@@ -696,7 +727,8 @@ INSTALL_STEAM=${INSTALL_STEAM}
 ENABLE_MULTILIB=${ENABLE_MULTILIB} # Pass the new variable
 DEFAULT_REGION="${DEFAULT_REGION}"
 DEFAULT_CITY="${DEFAULT_CITY}"
-PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}" # Get count from outer script or default
+# Get PARALLEL_DL_COUNT from outer scope, use default if not set in outer scope
+PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}"
 
 # Chroot Logging functions (redefined for clarity inside chroot)
 C_OFF='\033[0m'; C_RED='\033[0;31m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[0;33m'; C_BLUE='\033[0;34m'; C_BOLD='\033[1m'
@@ -769,13 +801,20 @@ fi
 # === Ensure Pacman config (ParallelDownloads, Color, Multilib) is correct ===
 info "Ensuring Pacman configuration inside chroot..."
 # Re-apply ParallelDownloads and Color settings using sed (idempotent)
-sed -i -E \
-    -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
-    -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
-    /etc/pacman.conf
-if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
-    echo "ParallelDownloads = \${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
+if [[ -n "\${PARALLEL_DL_COUNT}" ]]; then
+    info "Setting ParallelDownloads to \${PARALLEL_DL_COUNT} in chroot"
+    sed -i -E \
+        -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
+        -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
+        /etc/pacman.conf
+    if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
+        echo "ParallelDownloads = \${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
+    fi
+else
+    info "ParallelDownloads setting not applied in chroot (was not enabled)."
 fi
+
+info "Ensuring Color is enabled in chroot"
 sed -i -E \
     -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' \
     /etc/pacman.conf
@@ -787,7 +826,6 @@ fi
 if [[ "\${INSTALL_STEAM}" == "true" ]] || [[ "\${ENABLE_MULTILIB}" == "true" ]]; then
     info "Ensuring Multilib repository is enabled in chroot pacman.conf..."
     sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
-    # sed -i '/^[[:space:]]*\[multilib\]/{ n; s/^[[:space:]]*#Include/Include/ }' /etc/pacman.conf # Simpler alternative
     check_status_chroot "Ensuring multilib is enabled in chroot pacman.conf"
 fi
 success "Pacman configuration verified."
@@ -847,7 +885,7 @@ install_bootloader() {
 
     if [[ "$BOOT_MODE" == "UEFI" ]]; then
         info "Installing GRUB for UEFI..."
-        # Install to EFI partition, specify bootloader ID
+        # Install to EFI partition (mounted at /boot), specify bootloader ID
         arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ARCH --recheck
         check_status "Running grub-install for UEFI"
     else # BIOS
@@ -931,7 +969,10 @@ final_steps() {
     info "Attempting final unmount of filesystems..."
     sync # Sync filesystem buffers before unmounting
     # Attempt recursive unmount, use -l for lazy unmount as fallback, ignore errors
-    umount -R /mnt &>/dev/null || umount -R -l /mnt &>/dev/null || true
+    # Unmount /mnt/boot first if it exists
+    mountpoint -q /mnt/boot && umount -R /mnt/boot &>/dev/null || umount -l /mnt/boot &>/dev/null || true
+    # Unmount /mnt if it exists
+    mountpoint -q /mnt && umount -R /mnt &>/dev/null || umount -l /mnt &>/dev/null || true
     # Deactivate swap if it was used
     [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]] && swapoff "${SWAP_PARTITION}" &>/dev/null || true
     success "Attempted unmount and swapoff. Verify with 'lsblk' or 'mount'."
