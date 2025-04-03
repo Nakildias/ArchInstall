@@ -12,7 +12,9 @@
 ##  Step 4 - Bash into install.sh
 >bash install.sh
 ##  Step 4 - Follow steps in terminal
-# After rebooting to your Arch Linux installation
+### You will see green text that says installation successful when installation is done.
+### Simply reboot now shutdown your system
+### The script should tell you the commands to use to shutdown or restart in green text.
 ##  Step 5 - Post Install Script (Optional & Unfinished)
 > git clone https://github.com/Nakildias/ArchInstall.git
 ##
