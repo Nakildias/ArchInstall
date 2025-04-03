@@ -91,20 +91,20 @@ main() {
 
     # User configuration gathering
     select_disk
-    configure_partitioning      # Determines PART_PREFIX
+    configure_partitioning       # Determines PART_PREFIX
     configure_hostname_user
     select_kernel
     select_desktop_environment
-    select_optional_packages    # Sets INSTALL_STEAM flag
+    select_optional_packages     # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
 
     # Perform installation steps
-    configure_mirrors           # Enables multilib based on INSTALL_STEAM
-    partition_and_format        # Uses correct partition paths
-    mount_filesystems           # Uses correct partition paths
-    install_base_system         # Installs packages including Steam if selected
-    configure_installed_system  # Configures chroot, ensures multilib based on INSTALL_STEAM
-    install_bootloader          # Uses correct target disk
-    install_oh_my_zsh           # Optional
+    configure_mirrors            # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    partition_and_format         # Uses correct partition paths
+    mount_filesystems            # Uses correct partition paths
+    install_base_system          # Installs packages including Steam if selected
+    configure_installed_system   # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    install_bootloader           # Uses correct target disk
+    install_oh_my_zsh            # Optional
 
     # Finalization
     final_steps
@@ -347,6 +347,7 @@ select_optional_packages() {
     info "Optional Packages Selection..."
     INSTALL_STEAM=false
     INSTALL_DISCORD=false
+    ENABLE_MULTILIB=false # Default for the new option
 
     # Check for Steam installation
     if confirm "Install Steam? (Requires enabling the multilib repository)"; then
@@ -362,6 +363,17 @@ select_optional_packages() {
         info "Discord will be installed."
     else
         info "Discord will not be installed."
+    fi
+
+    # Check for explicitly enabling multilib (even if Steam isn't chosen)
+    if confirm "Enable the multilib repository? (Needed for 32-bit software, automatically enabled if Steam is chosen)"; then
+        ENABLE_MULTILIB=true
+        info "User chose to enable the multilib repository."
+    else
+        # Only mention disabling if Steam wasn't selected either
+        if [ "$INSTALL_STEAM" = "false" ]; then
+             info "User chose not to explicitly enable the multilib repository (and Steam wasn't selected)."
+        fi
     fi
 }
 
@@ -429,9 +441,9 @@ configure_mirrors() {
         # sed -i -E 's/^(Color)/#\1/' /etc/pacman.conf
     fi
 
-    # === Enable Multilib repository IF Steam was selected ===
-    if $INSTALL_STEAM; then
-        info "Enabling Multilib repository for Steam..."
+    # === Enable Multilib repository IF Steam OR Enable Multilib was selected ===
+    if [ "$INSTALL_STEAM" = "true" ] || [ "$ENABLE_MULTILIB" = "true" ]; then
+        info "Enabling Multilib repository..."
         # Use sed to uncomment the two lines for [multilib]
         # This makes it idempotent (running it again won't hurt)
         sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
@@ -442,8 +454,8 @@ configure_mirrors() {
         check_status "Enabling multilib repository in /etc/pacman.conf"
         success "Multilib repository enabled."
     else
-        info "Multilib repository remains disabled (Steam not selected)."
-        # Optional: Ensure multilib is commented out if INSTALL_STEAM is false
+        info "Multilib repository will remain disabled (Neither Steam nor the explicit option was selected)."
+        # Optional: Ensure multilib is commented out if neither condition is true
         # sed -i '/\[multilib\]/{ N; s/^([[:space:]]*\[multilib\]\n[[:space:]]*Include)/#\1/ }' /etc/pacman.conf
     fi
 
@@ -611,12 +623,12 @@ install_base_system() {
              info "Selecting packages for LXQt."
              de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" )
              ENABLE_DM="sddm"
-            ;;
+             ;;
         5) # MATE
              info "Selecting packages for MATE."
              de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" )
              ENABLE_DM="lightdm"
-            ;;
+             ;;
     esac
 
     # Optional packages based on user selection
@@ -681,6 +693,7 @@ USER_PASSWORD="${USER_PASSWORD}"
 ROOT_PASSWORD="${ROOT_PASSWORD}"
 ENABLE_DM="${ENABLE_DM}"
 INSTALL_STEAM=${INSTALL_STEAM}
+ENABLE_MULTILIB=${ENABLE_MULTILIB} # Pass the new variable
 DEFAULT_REGION="${DEFAULT_REGION}"
 DEFAULT_CITY="${DEFAULT_CITY}"
 PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}" # Get count from outer script or default
@@ -770,8 +783,8 @@ sed -i -E \
     echo "Color" >> /etc/pacman.conf
 fi
 
-# Ensure Multilib is enabled IF Steam was selected
-if [[ "\${INSTALL_STEAM}" == "true" ]]; then
+# Ensure Multilib is enabled IF Steam OR Enable Multilib was selected
+if [[ "\${INSTALL_STEAM}" == "true" ]] || [[ "\${ENABLE_MULTILIB}" == "true" ]]; then
     info "Ensuring Multilib repository is enabled in chroot pacman.conf..."
     sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
     # sed -i '/^[[:space:]]*\[multilib\]/{ n; s/^[[:space:]]*#Include/Include/ }' /etc/pacman.conf # Simpler alternative
@@ -887,12 +900,12 @@ install_oh_my_zsh() {
         if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
             warn "curl failed for Oh My Zsh (${USERNAME}), trying wget..."
              if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
-                error "Failed to download Oh My Zsh installer for ${USERNAME} using curl and wget."
+                 error "Failed to download Oh My Zsh installer for ${USERNAME} using curl and wget."
             else
-                success "Oh My Zsh installed for ${USERNAME} (using wget)."
-                # Set a different theme for the user, e.g., agnoster (requires powerline fonts)
-                arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
-                warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
+                 success "Oh My Zsh installed for ${USERNAME} (using wget)."
+                 # Set a different theme for the user, e.g., agnoster (requires powerline fonts)
+                 arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
+                 warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
             fi
         else
             success "Oh My Zsh installed for ${USERNAME} (using curl)."
