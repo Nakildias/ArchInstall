@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # Arch Linux Installation Script - Rewritten
-# Version: 2.3 (Fixed GRUB BIOS/GPT install)
 
 # --- Configuration ---
-SCRIPT_VERSION="2.3" # Updated version
+SCRIPT_VERSION="2.0-Experimental" # Updated version
 DEFAULT_KERNEL="linux"
 DEFAULT_PARALLEL_DL=5
 MIN_BOOT_SIZE_MB=512 # Minimum recommended boot size in MB
