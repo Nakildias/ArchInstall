@@ -3,7 +3,7 @@
 # Arch Linux Installation Script - Reworked
 
 # --- Configuration ---
-SCRIPT_VERSION="2.0"
+SCRIPT_VERSION="2.1" # Incremented version for the fix
 DEFAULT_KERNEL="linux"
 DEFAULT_PARALLEL_DL=5
 MIN_BOOT_SIZE_MB=512 # Minimum recommended boot size in MB
@@ -28,9 +28,11 @@ info() { echo -e "${C_BLUE}${C_BOLD}[INFO]${C_OFF} $1"; }
 warn() { echo -e "${C_YELLOW}${C_BOLD}[WARN]${C_OFF} $1"; }
 error() { echo -e "${C_RED}${C_BOLD}[ERROR]${C_OFF} $1"; }
 success() { echo -e "${C_GREEN}${C_BOLD}[SUCCESS]${C_OFF} $1"; }
+# Standard prompt - reads into the variable name passed as $2
 prompt() { read -p "$(echo -e "${C_PURPLE}${C_BOLD}[PROMPT]${C_OFF} $1")" "$2"; }
 confirm() {
     while true; do
+        # Use direct read for confirmation prompt
         read -p "$(echo -e "${C_YELLOW}${C_BOLD}[CONFIRM]${C_OFF} ${1} [y/N]: ")" yn
         case "${yn,,}" in
             y|yes) return 0 ;;
@@ -42,12 +44,16 @@ confirm() {
 
 # Check command success
 check_status() {
-    if [ $? -ne 0 ]; then
-        error "Command failed: $1"
+    local status=$? # Capture status immediately
+    if [ $status -ne 0 ]; then
+        error "Command failed with status $status: $1"
         # Optional: Add cleanup logic here if needed
         exit 1
     fi
+    # Return the original status if needed elsewhere, though typically not used after this check
+    return $status
 }
+
 
 # Exit handler
 trap 'cleanup' EXIT SIGHUP SIGINT SIGTERM
@@ -57,7 +63,7 @@ cleanup() {
     umount -R /mnt/boot &>/dev/null
     umount -R /mnt &>/dev/null
     # Deactivate swap if it was activated
-    [[ -n "$SWAP_PARTITION" ]] && swapoff "/dev/$SWAP_PARTITION" &>/dev/null
+    [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]] && swapoff "/dev/$SWAP_PARTITION" &>/dev/null
     info "Cleanup finished. If the script failed, some resources might still be mounted."
 }
 
@@ -74,7 +80,7 @@ main() {
     # User configuration gathering
     select_disk
     configure_partitioning
-    configure_hostname_user
+    configure_hostname_user # This function is modified
     select_kernel
     select_desktop_environment
     select_optional_packages
@@ -207,6 +213,7 @@ configure_partitioning() {
     fi
 }
 
+# --- !!! THIS FUNCTION HAS BEEN MODIFIED TO FIX PASSWORD INPUT !!! ---
 configure_hostname_user() {
     info "Configuring system identity..."
     while true; do
@@ -216,32 +223,59 @@ configure_hostname_user() {
 
     while true; do
         prompt "Enter username for the primary user: " USERNAME
-        [[ -n "$USERNAME" ]] && break || error "Username cannot be empty."
-    done
-
-    while true; do
-        prompt "Enter password for user '${USERNAME}': " -s USER_PASSWORD
-        echo
-        prompt "Confirm password for user '${USERNAME}': " -s USER_PASSWORD_CONFIRM
-        echo
-        if [[ "$USER_PASSWORD" == "$USER_PASSWORD_CONFIRM" ]] && [[ -n "$USER_PASSWORD" ]]; then
+        # Basic validation for username (prevent spaces, maybe enforce lowercase?)
+        if [[ -n "$USERNAME" && ! "$USERNAME" =~ \ |\' ]]; then
+             info "Username set to: ${USERNAME}"
             break
         else
-            error "Passwords do not match or are empty. Please try again."
+            error "Username cannot be empty and should not contain spaces or quotes."
         fi
     done
 
+    # --- Password Input Fix ---
+    # Use direct 'read -s -p' calls here, bypassing the 'prompt' helper function
+    # This correctly handles the -s (silent) option and variable assignment.
+    info "Setting password for user '${USERNAME}'."
     while true; do
-        prompt "Enter password for the root user: " -s ROOT_PASSWORD
-        echo
-        prompt "Confirm root password: " -s ROOT_PASSWORD_CONFIRM
-        echo
-        if [[ "$ROOT_PASSWORD" == "$ROOT_PASSWORD_CONFIRM" ]] && [[ -n "$ROOT_PASSWORD" ]]; then
-            break
+        read -s -p "$(echo -e "${C_PURPLE}${C_BOLD}[PROMPT]${C_OFF} Enter password for user '${USERNAME}': ")" USER_PASSWORD
+        echo # Print a newline after silent input
+        read -s -p "$(echo -e "${C_PURPLE}${C_BOLD}[PROMPT]${C_OFF} Confirm password for user '${USERNAME}': ")" USER_PASSWORD_CONFIRM
+        echo # Print a newline after silent input
+
+        if [[ -z "$USER_PASSWORD" ]]; then
+             error "Password cannot be empty. Please try again."
+             continue # Go back to the start of the loop
+        fi
+
+        if [[ "$USER_PASSWORD" == "$USER_PASSWORD_CONFIRM" ]]; then
+            success "Password for user '${USERNAME}' confirmed."
+            break # Exit the loop
         else
-            error "Passwords do not match or are empty. Please try again."
+            error "Passwords do not match. Please try again."
+            # Passwords remain stored for the next iteration unless cleared
         fi
     done
+
+    info "Setting password for the root user."
+    while true; do
+         read -s -p "$(echo -e "${C_PURPLE}${C_BOLD}[PROMPT]${C_OFF} Enter password for the root user: ")" ROOT_PASSWORD
+        echo # Print a newline
+        read -s -p "$(echo -e "${C_PURPLE}${C_BOLD}[PROMPT]${C_OFF} Confirm root password: ")" ROOT_PASSWORD_CONFIRM
+        echo # Print a newline
+
+        if [[ -z "$ROOT_PASSWORD" ]]; then
+             error "Root password cannot be empty. Please try again."
+             continue # Go back to the start of the loop
+        fi
+
+        if [[ "$ROOT_PASSWORD" == "$ROOT_PASSWORD_CONFIRM" ]]; then
+             success "Password for root user confirmed."
+            break # Exit the loop
+        else
+            error "Root passwords do not match. Please try again."
+        fi
+    done
+    # --- End of Password Input Fix ---
 }
 
 select_kernel() {
@@ -309,7 +343,18 @@ configure_mirrors() {
 
     # Use reflector to get the fastest mirrors (adjust countries as needed)
     # Consider adding more options like --sort rate, --protocol https etc.
-    reflector --verbose --country 'Canada,United States' --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
+    # Getting current country based on IP for reflector (requires curl and jq)
+    info "Attempting to detect country for mirror selection..."
+    CURRENT_COUNTRY_CODE=$(curl -s ipinfo.io/country)
+    if [[ -n "$CURRENT_COUNTRY_CODE" ]] && [[ ${#CURRENT_COUNTRY_CODE} -eq 2 ]]; then
+         info "Detected country code: ${CURRENT_COUNTRY_CODE}. Using it for reflector."
+         REFLECTOR_COUNTRIES="--country ${CURRENT_COUNTRY_CODE}"
+    else
+         warn "Could not detect country code automatically. Using default countries (Canada, US)."
+         REFLECTOR_COUNTRIES="--country Canada,US" # Fallback countries
+    fi
+
+    reflector --verbose ${REFLECTOR_COUNTRIES} --latest 10 --sort rate --save /etc/pacman.d/mirrorlist
     check_status "Running reflector"
 
     success "Mirrorlist updated."
@@ -321,20 +366,23 @@ configure_mirrors() {
             PARALLEL_DL_COUNT=${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}
             if [[ "$PARALLEL_DL_COUNT" =~ ^[1-9]$|^10$ ]]; then
                 info "Setting parallel downloads to ${PARALLEL_DL_COUNT}."
-                # Use grep/sed to uncomment or add the ParallelDownloads line
-                if grep -q "^#ParallelDownloads" /etc/pacman.conf; then
-                    sed -i "s/^#ParallelDownloads.*/ParallelDownloads = ${PARALLEL_DL_COUNT}/" /etc/pacman.conf
-                elif ! grep -q "^ParallelDownloads" /etc/pacman.conf; then
+                # Use grep/sed to uncomment or add/update the ParallelDownloads line
+                if grep -q -E "^#[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
+                    sed -i -E "s/^[[:space:]]*#[[:space:]]*ParallelDownloads.*/ParallelDownloads = ${PARALLEL_DL_COUNT}/" /etc/pacman.conf
+                elif ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
+                    # Add the line if it doesn't exist (commented or uncommented)
                     echo "ParallelDownloads = ${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
                 else
-                     sed -i "s/^ParallelDownloads.*/ParallelDownloads = ${PARALLEL_DL_COUNT}/" /etc/pacman.conf
+                    # Update existing uncommented line
+                     sed -i -E "s/^[[:space:]]*ParallelDownloads.*/ParallelDownloads = ${PARALLEL_DL_COUNT}/" /etc/pacman.conf
                 fi
                 # Enable Color
-                 if grep -q "^#Color" /etc/pacman.conf; then
-                    sed -i "s/^#Color/Color/" /etc/pacman.conf
-                elif ! grep -q "^Color" /etc/pacman.conf; then
+                 if grep -q -E "^#[[:space:]]*Color" /etc/pacman.conf; then
+                    sed -i -E "s/^[[:space:]]*#[[:space:]]*Color.*/Color/" /etc/pacman.conf
+                elif ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
+                     # Add the line if it doesn't exist
                     echo "Color" >> /etc/pacman.conf
-                fi
+                fi # If it exists uncommented, leave it
                 break
             else
                 error "Please enter a number between 1 and 10."
@@ -343,12 +391,14 @@ configure_mirrors() {
     else
         info "Parallel downloads disabled."
         # Ensure it's commented out if it exists
-        sed -i 's/^ParallelDownloads/#ParallelDownloads/' /etc/pacman.conf
+        sed -i -E 's/^[[:space:]]*ParallelDownloads/#ParallelDownloads/' /etc/pacman.conf
     fi
      # Enable Multilib if Steam is selected
     if $INSTALL_STEAM; then
         info "Enabling Multilib repository for Steam..."
-        sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+        # Make sed idempotent: only uncomment if commented
+        sed -i '/\[multilib\]/{n;s/^#Include/Include/}' /etc/pacman.conf
+        # Alternative sed: sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
         check_status "Enabling multilib repo"
         success "Multilib repository enabled."
     fi
@@ -362,59 +412,46 @@ configure_mirrors() {
 partition_and_format() {
     info "Partitioning ${TARGET_DISK} for ${BOOT_MODE}..."
 
-    # Partitioning
-    parted -s "${TARGET_DISK}" -- \
-        mklabel ${BOOT_MODE,,} \
-        $( [[ "$BOOT_MODE" == "UEFI" ]] && \
-           echo "mkpart ESP fat32 1MiB ${BOOT_PART_SIZE} set 1 esp on" || \
-           # BIOS with GPT needs bios_grub, BIOS with MBR needs boot flag
-           # Using GPT for consistency here
-           echo "mkpart primary 1MiB 2MiB set 1 bios_grub on" \
-           echo "mkpart primary fat32 2MiB ${BOOT_PART_SIZE}" \
-        ) \
-        $( [[ -n "$SWAP_PART_SIZE" ]] && echo "mkpart primary linux-swap ${BOOT_PART_SIZE} -$SWAP_PART_SIZE") \
-        mkpart primary ext4 $( [[ -n "$SWAP_PART_SIZE" ]] && echo "-$SWAP_PART_SIZE" || echo "${BOOT_PART_SIZE}" ) 100%
-
-    check_status "Partitioning disk ${TARGET_DISK}"
-
-    # Assign partition variables based on BOOT_MODE and presence of SWAP
-    local part_num_boot=1
-    local part_num_swap=2
-    local part_num_root=3
-
-    if [[ "$BOOT_MODE" == "BIOS" ]]; then
-        # BIOS/GPT: 1=bios_grub, 2=boot (placeholder/unused by grub typically), 3=swap, 4=root
-        # Adjusting logic to use a single boot partition for simplicity if possible
-        # Let's simplify: BIOS/GPT needs bios_grub, but we don't need a separate FAT32 /boot unless chainloading?
-        # Let's try MBR for BIOS for simplicity, avoids bios_grub partition.
-        info "Re-partitioning ${TARGET_DISK} for BIOS/MBR..."
-        sgdisk --zap-all "${TARGET_DISK}" # Clear GPT first
+    # Partitioning using parted
+    if [[ "$BOOT_MODE" == "UEFI" ]]; then
+        info "Creating GPT partition table for UEFI..."
         parted -s "${TARGET_DISK}" -- \
-            mklabel msdos \
-            mkpart primary ext4 1MiB ${BOOT_PART_SIZE} set 1 boot on \
+            mklabel gpt \
+            mkpart ESP fat32 1MiB "${BOOT_PART_SIZE}" \
+            set 1 esp on \
             $( [[ -n "$SWAP_PART_SIZE" ]] && echo "mkpart primary linux-swap ${BOOT_PART_SIZE} -$SWAP_PART_SIZE") \
             mkpart primary ext4 $( [[ -n "$SWAP_PART_SIZE" ]] && echo "-$SWAP_PART_SIZE" || echo "${BOOT_PART_SIZE}" ) 100%
-        check_status "Partitioning disk ${TARGET_DISK} with MBR"
-        part_num_boot=1
-        part_num_swap=2
-        part_num_root=3
-         if [[ -z "$SWAP_PART_SIZE" ]]; then part_num_root=2; fi # Root becomes 2nd partition if no swap
-    else # UEFI
-        # UEFI/GPT: 1=EFI, 2=Swap, 3=Root
-        part_num_boot=1
-        part_num_swap=2
-        part_num_root=3
-        if [[ -z "$SWAP_PART_SIZE" ]]; then part_num_root=2; fi # Root becomes 2nd partition if no swap
+        check_status "Partitioning disk ${TARGET_DISK} with GPT for UEFI"
+        # Assign partition numbers for UEFI/GPT
+        BOOT_PARTITION="${PART_PREFIX}1"
+        if [[ -n "$SWAP_PART_SIZE" ]]; then
+            SWAP_PARTITION="${PART_PREFIX}2"
+            ROOT_PARTITION="${PART_PREFIX}3"
+        else
+            SWAP_PARTITION=""
+            ROOT_PARTITION="${PART_PREFIX}2"
+        fi
+    else # BIOS
+        info "Creating MBR partition table for BIOS..."
+        # Wipe GPT just in case it existed before
+        sgdisk --zap-all "${TARGET_DISK}" &>/dev/null || wipefs --all --force "${TARGET_DISK}" &>/dev/null || true
+        parted -s "${TARGET_DISK}" -- \
+            mklabel msdos \
+            mkpart primary ext4 1MiB "${BOOT_PART_SIZE}" \
+            set 1 boot on \
+            $( [[ -n "$SWAP_PART_SIZE" ]] && echo "mkpart primary linux-swap ${BOOT_PART_SIZE} -$SWAP_PART_SIZE") \
+            mkpart primary ext4 $( [[ -n "$SWAP_PART_SIZE" ]] && echo "-$SWAP_PART_SIZE" || echo "${BOOT_PART_SIZE}" ) 100%
+        check_status "Partitioning disk ${TARGET_DISK} with MBR for BIOS"
+        # Assign partition numbers for BIOS/MBR
+        BOOT_PARTITION="${PART_PREFIX}1"
+         if [[ -n "$SWAP_PART_SIZE" ]]; then
+            SWAP_PARTITION="${PART_PREFIX}2"
+            ROOT_PARTITION="${PART_PREFIX}3"
+        else
+            SWAP_PARTITION=""
+            ROOT_PARTITION="${PART_PREFIX}2"
+        fi
     fi
-
-
-    BOOT_PARTITION="${PART_PREFIX}${part_num_boot}"
-    if [[ -n "$SWAP_PART_SIZE" ]]; then
-        SWAP_PARTITION="${PART_PREFIX}${part_num_swap}"
-    else
-        SWAP_PARTITION="" # Ensure it's empty if no swap
-    fi
-    ROOT_PARTITION="${PART_PREFIX}${part_num_root}"
 
     info "Disk layout planned:"
     info " Boot: /dev/${BOOT_PARTITION}"
@@ -430,7 +467,6 @@ partition_and_format() {
         mkfs.fat -F32 "/dev/${BOOT_PARTITION}"
         check_status "Formatting EFI partition /dev/${BOOT_PARTITION}"
     else # BIOS/MBR
-        # Boot partition might be ext4 or fat32 depending on preference. Ext4 is fine for GRUB.
         mkfs.ext4 -F "/dev/${BOOT_PARTITION}" # Using Ext4 for /boot in BIOS mode
         check_status "Formatting Boot partition /dev/${BOOT_PARTITION}"
     fi
@@ -446,21 +482,20 @@ partition_and_format() {
     success "Partitions formatted."
 }
 
+
 mount_filesystems() {
     info "Mounting filesystems..."
     mount "/dev/${ROOT_PARTITION}" /mnt
-    check_status "Mounting root partition"
+    check_status "Mounting root partition /dev/${ROOT_PARTITION}"
 
     # Create mount points within the new root
-    mkdir -p /mnt/boot
-    check_status "Creating /mnt/boot directory"
-
-    mount "/dev/${BOOT_PARTITION}" /mnt/boot
-    check_status "Mounting boot partition"
+    # Mount boot partition under /mnt/boot regardless of UEFI/BIOS
+    mount --mkdir "/dev/${BOOT_PARTITION}" /mnt/boot
+    check_status "Mounting boot partition /dev/${BOOT_PARTITION} at /mnt/boot"
 
     if [[ -n "$SWAP_PARTITION" ]]; then
         swapon "/dev/${SWAP_PARTITION}"
-        check_status "Activating swap partition"
+        check_status "Activating swap partition /dev/${SWAP_PARTITION}"
     fi
     success "Filesystems mounted."
 }
@@ -491,6 +526,7 @@ install_base_system() {
 
     # Desktop Environment packages
     local de_pkgs=()
+    ENABLE_DM="" # Reset DM variable
     case $SELECTED_DE_INDEX in
         0) # Server
             info "No GUI packages selected (Server install)."
@@ -500,7 +536,7 @@ install_base_system() {
             de_pkgs+=(
                 "plasma-desktop" "sddm" "konsole" "dolphin" "gwenview"
                 "ark" "kcalc" "spectacle" "kate" "kscreen" "flatpak" "discover"
-                "partitionmanager" "p7zip" "firefox"
+                "partitionmanager" "p7zip" "firefox" "plasma-nm" # Added plasma-nm for network mgmt applet
             )
             ENABLE_DM="sddm"
             ;;
@@ -508,7 +544,7 @@ install_base_system() {
             de_pkgs+=(
                 "gnome" "gdm" "gnome-terminal" "nautilus" "gnome-text-editor"
                 "gnome-control-center" "gnome-software" "eog" "file-roller"
-                "flatpak" "firefox"
+                "flatpak" "firefox" "gnome-shell-extensions" # Added extensions package
             )
             ENABLE_DM="gdm"
             ;;
@@ -516,7 +552,7 @@ install_base_system() {
              de_pkgs+=(
                  "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter"
                  "xfce4-terminal" "thunar" "mousepad" "ristretto"
-                 "file-roller" "flatpak" "firefox"
+                 "file-roller" "flatpak" "firefox" "network-manager-applet" # Added network applet
             )
             ENABLE_DM="lightdm"
             ;;
@@ -525,7 +561,7 @@ install_base_system() {
                  "lxqt" "sddm" # LXQt often uses SDDM or LightDM, choosing SDDM here
                  "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt"
                  "ark" # Using ark for archives
-                 "flatpak" "firefox"
+                 "flatpak" "firefox" "network-manager-applet" # Added network applet
              )
              ENABLE_DM="sddm"
             ;;
@@ -533,7 +569,7 @@ install_base_system() {
              de_pkgs+=(
                  "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" # Or use GDM if preferred
                  "mate-terminal" "caja" "pluma" "eom"
-                 "engrampa" "flatpak" "firefox"
+                 "engrampa" "flatpak" "firefox" "network-manager-applet" # Added network applet
              )
              ENABLE_DM="lightdm"
             ;;
@@ -564,18 +600,32 @@ configure_installed_system() {
     info "Generating fstab..."
     genfstab -U /mnt >> /mnt/etc/fstab
     check_status "Generating fstab"
-    # Verify fstab entries (optional basic check)
-    grep -q '/dev/ROOT_PARTITION' /mnt/etc/fstab && error "fstab might contain device names instead of UUIDs. Check /mnt/etc/fstab." || true
+    # Verify fstab entries (optional basic check to ensure UUIDs/Labels are used)
+    if grep -qE '/dev/(sd|nvme|vd)' /mnt/etc/fstab; then
+         warn "/etc/fstab seems to contain device names (e.g., /dev/sda1). UUIDs or LABELS are recommended."
+         warn "Check /mnt/etc/fstab after installation."
+    fi
+    success "fstab generated (/mnt/etc/fstab)."
+
 
     # Copy necessary variables and the configuration script into chroot
     # This avoids passing many arguments to arch-chroot
+    # Copy potentially updated mirrorlist and pacman.conf into the chroot environment
+    info "Copying Pacman configuration to chroot environment..."
     cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
+    check_status "Copying mirrorlist to /mnt"
     cp /etc/pacman.conf /mnt/etc/pacman.conf
+    check_status "Copying pacman.conf to /mnt"
+
 
     # Create a script to run inside chroot
-    cat <<CHROOT_SCRIPT > /mnt/configure_chroot.sh
+    # Use cat with explicit EOF marker and ensure variables are expanded correctly
+    # Use quotes around variables that might contain spaces or special characters if necessary,
+    # but here they are mostly simple values.
+    cat <<CHROOT_SCRIPT_EOF > /mnt/configure_chroot.sh
 #!/bin/bash
 set -e # Exit on error within chroot script
+set -o pipefail
 
 # Color definitions for chroot script
 C_OFF='\033[0m'
@@ -586,18 +636,31 @@ C_BLUE='\033[0;34m'
 C_PURPLE='\033[0;35m'
 C_BOLD='\033[1m'
 
-info() { echo -e "${C_BLUE}${C_BOLD}[CHROOT INFO]${C_OFF} \$1"; }
-error() { echo -e "${C_RED}${C_BOLD}[CHROOT ERROR]${C_OFF} \$1"; }
-success() { echo -e "${C_GREEN}${C_BOLD}[CHROOT SUCCESS]${C_OFF} \$1"; }
-warn() { echo -e "${C_YELLOW}${C_BOLD}[WARN]${C_OFF} \$1"; }
+# Logging functions within chroot
+info() { echo -e "\${C_BLUE}\${C_BOLD}[CHROOT INFO]\${C_OFF} \$1"; }
+error() { echo -e "\${C_RED}\${C_BOLD}[CHROOT ERROR]\${C_OFF} \$1"; }
+success() { echo -e "\${C_GREEN}\${C_BOLD}[CHROOT SUCCESS]\${C_OFF} \$1"; }
+warn() { echo -e "\${C_YELLOW}\${C_BOLD}[WARN]\${C_OFF} \$1"; }
+check_status_chroot() {
+    local status=\$?
+    if [ \$status -ne 0 ]; then
+        error "Chroot command failed with status \$status: \$1"
+        exit 1
+    fi
+    return \$status
+}
+
 
 # --- Configuration passed from main script ---
-HOSTNAME="$HOSTNAME"
-USERNAME="$USERNAME"
-USER_PASSWORD="$USER_PASSWORD"
-ROOT_PASSWORD="$ROOT_PASSWORD"
-ENABLE_DM="$ENABLE_DM" # Display manager service name (sddm, gdm, lightdm) or empty
-INSTALL_STEAM=$INSTALL_STEAM
+HOSTNAME="${HOSTNAME}"
+USERNAME="${USERNAME}"
+USER_PASSWORD="${USER_PASSWORD}"
+ROOT_PASSWORD="${ROOT_PASSWORD}"
+ENABLE_DM="${ENABLE_DM}" # Display manager service name (sddm, gdm, lightdm) or empty
+INSTALL_STEAM=${INSTALL_STEAM} # Boolean value
+DEFAULT_REGION="${DEFAULT_REGION}" # Added for Timezone
+DEFAULT_CITY="${DEFAULT_CITY}" # Added for Timezone
+PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}" # Use value or default
 
 # --- Chroot Configuration Steps ---
 
@@ -605,123 +668,128 @@ INSTALL_STEAM=$INSTALL_STEAM
 info "Setting timezone..."
 # Consider using timedatectl list-timezones interactively here if desired
 # Using predefined defaults for now
-ln -sf "/usr/share/zoneinfo/${DEFAULT_REGION}/${DEFAULT_CITY}" /etc/localtime
-check_status "Linking timezone"
+ln -sf "/usr/share/zoneinfo/\${DEFAULT_REGION}/\${DEFAULT_CITY}" /etc/localtime
+check_status_chroot "Linking timezone"
 hwclock --systohc # Set hardware clock from system clock
-check_status "Setting hardware clock"
-success "Timezone set to ${DEFAULT_REGION}/${DEFAULT_CITY}."
+check_status_chroot "Setting hardware clock"
+success "Timezone set to \${DEFAULT_REGION}/\${DEFAULT_CITY}."
 
 # Locale
 info "Configuring Locale..."
 LOCALE_CHOICE="en_US.UTF-8" # Default, consider making this selectable
-info "Setting locale to ${LOCALE_CHOICE}"
-echo "${LOCALE_CHOICE} UTF-8" > /etc/locale.gen
-# Uncomment other locales if needed based on user input
-# Example: sed -i 's/^#fr_FR.UTF-8/fr_FR.UTF-8/' /etc/locale.gen
+info "Setting locale to \${LOCALE_CHOICE}"
+echo "\${LOCALE_CHOICE} UTF-8" > /etc/locale.gen
+# Example: Add French locale as well
+# echo "fr_FR.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
-check_status "Generating locales"
-echo "LANG=${LOCALE_CHOICE}" > /etc/locale.conf
+check_status_chroot "Generating locales"
+echo "LANG=\${LOCALE_CHOICE}" > /etc/locale.conf
 success "Locale configured."
 
 # Hostname
 info "Setting hostname..."
-echo "${HOSTNAME}" > /etc/hostname
+echo "\${HOSTNAME}" > /etc/hostname
 # Configure /etc/hosts
 cat <<EOF > /etc/hosts
 127.0.0.1   localhost
 ::1         localhost
-127.0.1.1   ${HOSTNAME}.localdomain ${HOSTNAME}
+127.0.1.1   \${HOSTNAME}.localdomain \${HOSTNAME}
 EOF
-success "Hostname set to ${HOSTNAME}."
+success "Hostname set to \${HOSTNAME}."
 
 # Root Password
 info "Setting root password..."
-echo "root:${ROOT_PASSWORD}" | chpasswd
-check_status "Setting root password"
+echo "root:\${ROOT_PASSWORD}" | chpasswd
+check_status_chroot "Setting root password"
 success "Root password set."
 
 # Create User
-info "Creating user ${USERNAME}..."
-# Create user with home directory, add to wheel group, set default shell to zsh
-useradd -m -G wheel -s /bin/zsh "${USERNAME}"
-check_status "Creating user ${USERNAME}"
-echo "${USERNAME}:${USER_PASSWORD}" | chpasswd
-check_status "Setting password for ${USERNAME}"
-success "User ${USERNAME} created and password set."
+info "Creating user \${USERNAME}..."
+# Create user with home directory (-m), add to wheel group (-G), set default shell to zsh (-s)
+useradd -m -G wheel -s /bin/zsh "\${USERNAME}"
+check_status_chroot "Creating user \${USERNAME}"
+echo "\${USERNAME}:\${USER_PASSWORD}" | chpasswd
+check_status_chroot "Setting password for \${USERNAME}"
+success "User \${USERNAME} created and password set."
 
 # Sudoers configuration (uncomment wheel group)
 info "Configuring sudo (granting wheel group privileges)..."
 # Use visudo for safety in real scenarios, but sed is common in scripts
-if grep -q '^# %wheel ALL=(ALL:ALL) ALL' /etc/sudoers; then
-    sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-    check_status "Uncommenting wheel group in sudoers"
+# Check if the line exists and is commented, then uncomment it
+if grep -q -E '^#[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL' /etc/sudoers; then
+    sed -i -E 's/^#[[:space:]]*(%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL)/\1/' /etc/sudoers
+    check_status_chroot "Uncommenting wheel group in sudoers"
     success "Sudo configured for wheel group."
-elif grep -q '^%wheel ALL=(ALL:ALL) ALL' /etc/sudoers; then
+# Check if the line already exists uncommented
+elif grep -q -E '^[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL' /etc/sudoers; then
     warn "Wheel group already uncommented in sudoers."
 else
     error "Could not find wheel group line in /etc/sudoers to uncomment."
-    # Optionally add the line if it's completely missing
+    warn "Manual configuration of /etc/sudoers might be required using 'visudo'."
+    # Optionally add the line if it's completely missing and you're feeling brave
     # echo '%wheel ALL=(ALL:ALL) ALL' >> /etc/sudoers
 fi
 
 
 # Pacman Configuration (ensure parallel downloads and color are set inside chroot too)
+# This might be redundant if the pacman.conf was copied correctly, but ensures settings
 info "Ensuring pacman configuration inside chroot..."
-if grep -q "^#ParallelDownloads" /etc/pacman.conf; then
-    sed -i "s/^#ParallelDownloads.*/ParallelDownloads = ${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}/" /etc/pacman.conf
-elif ! grep -q "^ParallelDownloads" /etc/pacman.conf; then
-    echo "ParallelDownloads = ${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}" >> /etc/pacman.conf
+if grep -q -E "^#[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
+    sed -i -E "s/^[[:space:]]*#[[:space:]]*ParallelDownloads.*/ParallelDownloads = \${PARALLEL_DL_COUNT}/" /etc/pacman.conf
+elif ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
+    echo "ParallelDownloads = \${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
 else
-     sed -i "s/^ParallelDownloads.*/ParallelDownloads = ${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}/" /etc/pacman.conf
+     sed -i -E "s/^[[:space:]]*ParallelDownloads.*/ParallelDownloads = \${PARALLEL_DL_COUNT}/" /etc/pacman.conf
 fi
-if grep -q "^#Color" /etc/pacman.conf; then
-    sed -i "s/^#Color/Color/" /etc/pacman.conf
-elif ! grep -q "^Color" /etc/pacman.conf; then
+if grep -q -E "^#[[:space:]]*Color" /etc/pacman.conf; then
+    sed -i -E "s/^[[:space:]]*#[[:space:]]*Color.*/Color/" /etc/pacman.conf
+elif ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
     echo "Color" >> /etc/pacman.conf
 fi
 # Enable Multilib if Steam is selected
-if $INSTALL_STEAM; then
+if [[ "\${INSTALL_STEAM}" == "true" ]]; then
     info "Ensuring Multilib repository is enabled inside chroot..."
-    sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+    sed -i '/\[multilib\]/{n;s/^#Include/Include/}' /etc/pacman.conf
 fi
-pacman -Syy # Refresh databases inside chroot if config changed
+# No need to run pacman -Syy here unless packages are installed right after
 
 
 # Enable essential services
 info "Enabling essential system services..."
 systemctl enable NetworkManager
-check_status "Enabling NetworkManager service"
+check_status_chroot "Enabling NetworkManager service"
 success "NetworkManager enabled."
 
 # Enable Display Manager if a DE was selected
-if [[ -n "$ENABLE_DM" ]]; then
-    info "Enabling Display Manager service (${ENABLE_DM})..."
-    systemctl enable "${ENABLE_DM}.service"
-    check_status "Enabling ${ENABLE_DM} service"
-    success "${ENABLE_DM} enabled."
+if [[ -n "\${ENABLE_DM}" ]]; then
+    info "Enabling Display Manager service (\${ENABLE_DM})..."
+    systemctl enable "\${ENABLE_DM}.service"
+    check_status_chroot "Enabling \${ENABLE_DM} service"
+    success "\${ENABLE_DM} enabled."
 else
     info "No Display Manager to enable (Server install)."
 fi
 
 # Optional: Enable SSH if installed (e.g., for Server)
 if pacman -Qs openssh &>/dev/null; then
-     if confirm "Enable SSH service (sshd)?"; then
-        systemctl enable sshd
-        check_status "Enabling sshd service"
-        success "sshd enabled."
-    fi
+     # Bypassing confirm inside chroot script for now - enable if openssh installed
+     info "OpenSSH package found, enabling sshd service..."
+     systemctl enable sshd
+     check_status_chroot "Enabling sshd service"
+     success "sshd enabled."
+     # Add confirm logic here if interaction is needed within chroot (more complex)
 fi
 
-# Update initramfs (important after potential changes like microcode)
-info "Updating initial ramdisk environment..."
+# Update initramfs (important after potential changes like microcode, modules, hooks)
+info "Updating initial ramdisk environment (mkinitcpio)..."
 mkinitcpio -P # Regenerate all presets
-check_status "Running mkinitcpio -P"
+check_status_chroot "Running mkinitcpio -P"
 success "Initramfs updated."
 
 
 success "Chroot configuration script finished."
 
-CHROOT_SCRIPT
+CHROOT_SCRIPT_EOF
 
     chmod +x /mnt/configure_chroot.sh
     check_status "Setting execute permissions on chroot script"
@@ -741,14 +809,16 @@ install_bootloader() {
     info "Installing and configuring GRUB bootloader for ${BOOT_MODE}..."
 
     if [[ "$BOOT_MODE" == "UEFI" ]]; then
-        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ARCH
+        # Ensure /boot is mounted before running this
+        arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ARCH --recheck
         check_status "Running grub-install for UEFI"
     else # BIOS
-        arch-chroot /mnt grub-install --target=i386-pc "${TARGET_DISK}"
+        arch-chroot /mnt grub-install --target=i386-pc --recheck "${TARGET_DISK}"
         check_status "Running grub-install for BIOS on ${TARGET_DISK}"
     fi
 
     # Generate GRUB config
+    info "Generating GRUB configuration file..."
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     check_status "Running grub-mkconfig"
 
@@ -757,54 +827,85 @@ install_bootloader() {
 
 install_oh_my_zsh() {
     if confirm "Install Oh My Zsh for user '${USERNAME}' and root?"; then
-        info "Installing Oh My Zsh..."
+        info "Installing Oh My Zsh (requires internet access within chroot)..."
+
+        # Install prerequisites if potentially missing (git, curl/wget are base-devel usually)
+        # arch-chroot /mnt pacman -S --noconfirm --needed git curl wget zsh
 
         # Install for root user
         info "Installing Oh My Zsh for root..."
-        arch-chroot /mnt sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || \
-        arch-chroot /mnt sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-        check_status "Installing Oh My Zsh for root"
-        # Optionally set a theme for root
-        arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
-        success "Oh My Zsh installed for root."
+        if ! arch-chroot /mnt sh -c 'export RUNZSH=no; export CHSH=no; sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
+             warn "curl failed for Oh My Zsh (root), trying wget..."
+             if ! arch-chroot /mnt sh -c 'export RUNZSH=no; export CHSH=no; sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
+                 error "Failed to install Oh My Zsh for root using both curl and wget."
+                 # Continue without OMZ for root? Or fail script? Choose to continue.
+             else
+                 success "Oh My Zsh installed for root using wget."
+                 # Optionally set a theme for root
+                 arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
+             fi
+        else
+             success "Oh My Zsh installed for root using curl."
+             # Optionally set a theme for root
+             arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
+        fi
 
 
         # Install for the regular user
         info "Installing Oh My Zsh for user ${USERNAME}..."
         # Need to run the installer as the user
-        arch-chroot /mnt sudo -u "${USERNAME}" sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || \
-        arch-chroot /mnt sudo -u "${USERNAME}" sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-        check_status "Installing Oh My Zsh for ${USERNAME}"
-        # Optionally set a theme for the user
-        arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "/home/${USERNAME}/.zshrc" # Example theme
-        warn "User ${USERNAME}'s default shell is now Zsh. Consider installing powerline fonts (e.g., 'powerline-fonts' package) for themes like 'agnoster'."
-        success "Oh My Zsh installed for ${USERNAME}."
+        # Set HOME explicitly for sudo -u
+        local user_home="/home/${USERNAME}"
+        if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+             warn "curl failed for Oh My Zsh (${USERNAME}), trying wget..."
+             if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+                error "Failed to install Oh My Zsh for ${USERNAME} using both curl and wget."
+                 # User's shell is already zsh from useradd, this just failed extra setup
+            else
+                 success "Oh My Zsh installed for ${USERNAME} using wget."
+                 # Optionally set a theme for the user
+                 arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc" # Example theme
+                 warn "User ${USERNAME}'s default shell is Zsh. Consider installing powerline fonts (e.g., 'powerline-fonts' package) for themes like 'agnoster'."
+             fi
+        else
+             success "Oh My Zsh installed for ${USERNAME} using curl."
+             # Optionally set a theme for the user
+             arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc" # Example theme
+             warn "User ${USERNAME}'s default shell is Zsh. Consider installing powerline fonts (e.g., 'powerline-fonts' package) for themes like 'agnoster'."
+        fi
+
     else
         info "Oh My Zsh will not be installed."
-        # Ensure user's shell is bash if OMZ is skipped, otherwise it was set to zsh during useradd
+        # Ensure user's shell is bash if OMZ is skipped AND it was set to zsh during useradd
+         info "Setting user ${USERNAME}'s shell back to /bin/bash."
          arch-chroot /mnt chsh -s /bin/bash "${USERNAME}"
-         info "User ${USERNAME}'s shell remains /bin/bash."
+         check_status "Setting ${USERNAME}'s shell to bash"
 
     fi
 }
 
+
 final_steps() {
     success "Arch Linux installation appears complete!"
     info "It is recommended to review the installed system before rebooting."
-    info "You can use 'arch-chroot /mnt' to explore the installed system."
+    info "You can use 'arch-chroot /mnt' to explore the installed system (e.g., check /etc/fstab, /boot/grub/grub.cfg)."
     warn "Remember to remove the installation medium before rebooting."
 
-    # Unmount filesystems (handled by trap on exit, but can do explicitly here)
-    # info "Unmounting filesystems..."
-    # umount -R /mnt
-    # [[ -n "$SWAP_PARTITION" ]] && swapoff "/dev/$SWAP_PARTITION"
-    # success "Filesystems unmounted."
+    # Final unmount sequence (also handled by trap, but explicit call can be clearer)
+    info "Attempting final unmount of filesystems..."
+    # Use lazy unmount just in case something is busy, though regular should work if trap is effective
+    umount -R /mnt &>/dev/null || umount -R -l /mnt &>/dev/null || true # Try regular then lazy unmount
+    [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]] && swapoff "/dev/$SWAP_PARTITION" &>/dev/null || true # Turn off swap if exists
+    success "Attempted unmount. Check with 'lsblk' or 'findmnt' if needed."
 
+    echo -e "${C_GREEN}${C_BOLD}"
+    echo "----------------------------------------------------"
+    echo " Installation finished."
+    echo " You can now type 'reboot' or 'shutdown now'."
+    echo "----------------------------------------------------"
+    echo -e "${C_OFF}"
 
-    echo -e "${C_GREEN}${C_BOLD}Installation finished. You can now type 'reboot' or 'shutdown now'.${C_OFF}"
     # Don't automatically reboot, let the user decide.
-    # prompt "Press ENTER to reboot, or Ctrl+C to cancel." _
-    # reboot
 }
 
 # --- Run the main function ---
