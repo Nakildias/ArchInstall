@@ -773,7 +773,7 @@ fi
 # Ensure Multilib is enabled IF Steam was selected
 if [[ "\${INSTALL_STEAM}" == "true" ]]; then
     info "Ensuring Multilib repository is enabled in chroot pacman.conf..."
-    sed -i '/\[multilib\]/{ N; s/^#[[:space:]]*(\[multilib\]\n#Include)/\1/ }' /etc/pacman.conf
+    sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
     # sed -i '/^[[:space:]]*\[multilib\]/{ n; s/^[[:space:]]*#Include/Include/ }' /etc/pacman.conf # Simpler alternative
     check_status_chroot "Ensuring multilib is enabled in chroot pacman.conf"
 fi
