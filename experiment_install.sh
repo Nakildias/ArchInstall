@@ -434,7 +434,7 @@ configure_mirrors() {
         info "Enabling Multilib repository for Steam..."
         # Use sed to uncomment the two lines for [multilib]
         # This makes it idempotent (running it again won't hurt)
-        sed -i '/\[multilib\]/{ N; s/^#[[:space:]]*(\[multilib\]\n#Include)/\1/ }' /etc/pacman.conf
+        sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
         # Alternative simpler sed if Include is always the line after [multilib]
         # sed -i '/^#\[multilib\]/{N;s/#\[multilib\]\n#Include/\[multilib\]\nInclude/}' /etc/pacman.conf
         # Safest sed, only uncomment Include if [multilib] is uncommented or commented
