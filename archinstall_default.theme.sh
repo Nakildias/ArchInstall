@@ -1,5 +1,5 @@
 #! bash oh-my-bash.module
-
+#OLD FILE DO NOT USE OH MY BASH IS USED BY DEFAULT NOW
 # oh-my-bash theme with no emojis
 # by nakildias
 
