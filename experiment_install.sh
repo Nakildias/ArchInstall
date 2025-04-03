@@ -451,6 +451,9 @@ configure_mirrors() {
     info "Synchronizing package databases..."
     pacman -Syy
     check_status "pacman -Syy"
+    # Update keyring so user doesn't get corrupted package errors
+    echo "Updating archlinux-keyring..."
+    pacman -Sy archlinux-keyring --noconfirm
 }
 
 partition_and_format() {
