@@ -3,10 +3,16 @@
 ##  Step 1 - Boot Arch from USB
 ##  Step 2 - Install Git and Clone the repo
 > pacman -Sy git
-##
-> git clone https://github.com/Nakildias/ArchInstall.git
-## If you are having issues with corrupted packages or invalid signatures update the archlinux keyring.
+### if having issues installing git use those commands
+> pacman-key --init
+###
 > pacman -Sy archlinux-keyring
+###
+### try installing git again
+##
+## Step 2.5 - Clone the repo
+### Note: To avoid potential issues write it with the proper capital letters.
+> git clone https://github.com/Nakildias/ArchInstall
 ##  Step 3 - CD into ArchInstall directory
 > cd ArchInstall
 ##  Step 4 - Bash into install.sh
