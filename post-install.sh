@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Arch Linux Post-Installation Setup Script
-# Version: 1.0
+# Version: 1.1 (VM detection added)
 
 # --- Configuration ---
-SCRIPT_VERSION="1.0"
+SCRIPT_VERSION="1.1"
 
 # --- Helper Functions ---
 
@@ -111,78 +111,148 @@ install_aur_helper() {
     fi
 }
 
-# 2. Install Graphics Drivers
+# 2. Install Graphics Drivers (including VM guest tools)
 install_gpu_drivers() {
-    info "--- Graphics Driver Setup ---"
-    if ! confirm "Attempt to detect and install graphics drivers?"; then
-        info "Skipping graphics driver installation."
+    info "--- Graphics Driver / VM Guest Tools Setup ---"
+    if ! confirm "Attempt to detect and install graphics drivers or VM guest tools?"; then
+        info "Skipping graphics driver/VM tools installation."
         return
     fi
 
-    # Detect GPU vendor(s) using lspci
-    local intel_gpu=false
-    local nvidia_gpu=false
-    local amd_gpu=false
-
-    info "Detecting VGA-compatible controllers..."
-    # Use loop to read lines safely
-    while IFS= read -r line; do
-        info " Found: $line"
-        if echo "$line" | grep -iq "intel"; then intel_gpu=true; fi
-        if echo "$line" | grep -iq "nvidia"; then nvidia_gpu=true; fi
-        if echo "$line" | grep -iqE "amd|ati|radeon"; then amd_gpu=true; fi
-    done < <(lspci | grep -iE 'vga|3d|display')
-
     local pkgs_to_install=()
+    local vm_type="none"
+    local vm_tools_installed=false
 
-    # --- Intel ---
-    if $intel_gpu; then
-        info "Intel GPU detected."
-        if confirm "Install open-source Intel drivers (mesa, vulkan-intel, intel-media-driver)?"; then
-            pkgs_to_install+=(mesa vulkan-intel intel-media-driver libva-intel-driver) # Add older driver too for compatibility
-        fi
+    # --- Virtual Machine Detection ---
+    info "Checking for virtualization environment..."
+    if command -v systemd-detect-virt &>/dev/null; then
+        vm_type=$(systemd-detect-virt --container --vm) # Detects both VMs and containers
+        # Treat containers as 'none' for graphics purposes unless specifically handled
+        case "$vm_type" in
+            qemu|kvm|bochs)
+                info "Detected QEMU/KVM/Bochs environment."
+                if confirm "Install QEMU/Spice guest tools (spice-vdagent, mesa)?"; then
+                     # mesa includes virglrenderer for 3D, qxl driver might be separate if needed
+                    pkgs_to_install+=(spice-vdagent mesa xf86-video-qxl)
+                    vm_tools_installed=true
+                fi
+                ;;
+            vmware)
+                info "Detected VMware environment."
+                if confirm "Install VMware guest tools (open-vm-tools, xf86-video-vmware)?"; then
+                    pkgs_to_install+=(open-vm-tools xf86-video-vmware)
+                    if [ ${#pkgs_to_install[@]} -gt 0 ]; then
+                        info "Installing selected VM tools..."
+                        pacman -S --needed --noconfirm "${pkgs_to_install[@]}"
+                        check_status "Installing VMware guest tools"
+                        info "Enabling and starting VMware tools service..."
+                        systemctl enable --now vmtoolsd.service
+                        check_status "Enabling vmtoolsd service"
+                        success "VMware guest tools installed and service enabled."
+                        vm_tools_installed=true
+                        pkgs_to_install=() # Reset array as we installed them already
+                    fi
+                fi
+                ;;
+            oracle) # Corresponds to VirtualBox
+                info "Detected VirtualBox environment."
+                if confirm "Install VirtualBox guest additions (virtualbox-guest-utils)?"; then
+                    pkgs_to_install+=(virtualbox-guest-utils)
+                     if [ ${#pkgs_to_install[@]} -gt 0 ]; then
+                        info "Installing selected VM tools..."
+                        pacman -S --needed --noconfirm "${pkgs_to_install[@]}"
+                        check_status "Installing VirtualBox guest additions"
+                        info "Enabling VirtualBox guest service..."
+                        # The service might vary slightly, but vboxservice is common
+                        systemctl enable --now vboxservice.service
+                        check_status "Enabling vboxservice service"
+                        warn "A reboot is usually required for VirtualBox guest additions to fully function."
+                        success "VirtualBox guest additions installed and service enabled."
+                        vm_tools_installed=true
+                        pkgs_to_install=() # Reset array as we installed them already
+                     fi
+                fi
+                ;;
+            *)
+                if [ "$vm_type" != "none" ]; then
+                    warn "Detected virtualization type '$vm_type', but no specific guest tools configured for it in this script."
+                else
+                    info "No known VM environment detected or running on bare metal."
+                fi
+                vm_type="none" # Treat unknown/unhandled VMs or containers as none for physical GPU check
+                ;;
+        esac
+    else
+        warn "Cannot find 'systemd-detect-virt'. Unable to reliably detect virtual machine environment. Falling back to hardware detection."
+        vm_type="none"
     fi
 
-    # --- AMD ---
-    if $amd_gpu; then
-        info "AMD/ATI GPU detected."
-        if confirm "Install open-source AMD drivers (mesa, vulkan-radeon, libva-mesa-driver, mesa-vdpau)?"; then
-            pkgs_to_install+=(mesa vulkan-radeon libva-mesa-driver mesa-vdpau xf86-video-amdgpu) # Add DDX driver too
+    # --- Physical Hardware Detection (only if VM tools weren't installed) ---
+    if ! $vm_tools_installed && [ "$vm_type" == "none" ]; then
+        info "Proceeding with physical hardware detection..."
+        # Detect GPU vendor(s) using lspci
+        local intel_gpu=false
+        local nvidia_gpu=false
+        local amd_gpu=false
+
+        info "Detecting VGA-compatible controllers..."
+        # Use loop to read lines safely
+        while IFS= read -r line; do
+            info " Found: $line"
+            if echo "$line" | grep -iq "intel"; then intel_gpu=true; fi
+            if echo "$line" | grep -iq "nvidia"; then nvidia_gpu=true; fi
+            if echo "$line" | grep -iqE "amd|ati|radeon"; then amd_gpu=true; fi
+        done < <(lspci | grep -iE 'vga|3d|display')
+
+        # --- Intel ---
+        if $intel_gpu; then
+            info "Intel GPU detected."
+            if confirm "Install open-source Intel drivers (mesa, vulkan-intel, intel-media-driver)?"; then
+                pkgs_to_install+=(mesa vulkan-intel intel-media-driver libva-intel-driver) # Add older driver too for compatibility
+            fi
         fi
-    fi
 
-    # --- NVIDIA ---
-    if $nvidia_gpu; then
-        info "NVIDIA GPU detected."
-        if confirm "Install proprietary NVIDIA drivers (nvidia-dkms, nvidia-utils, libva-nvidia-driver)? (Requires kernel headers)"; then
-            # Install headers for currently running kernel and common LTS kernel
-            # Note: This might not match the *installed* kernel if user booted fallback
-            warn "Ensuring kernel headers are installed (may take a moment)..."
-            local current_kernel
-            current_kernel=$(uname -r | cut -d '-' -f 2) # Extracts 'arch1' etc. Needs mapping to package.
-            # Safer to install common headers
-            pacman -S --needed --noconfirm linux-headers linux-lts-headers # Install for standard and LTS
-            check_status "Installing kernel headers"
-
-            pkgs_to_install+=(nvidia-dkms nvidia-utils libva-nvidia-driver) # Use DKMS version for wider kernel compatibility
-            warn "Proprietary NVIDIA drivers selected. You might need to regenerate initramfs (mkinitcpio -P) and configure modules/modesetting depending on your setup (e.g., Wayland)."
-        elif confirm "Install open-source NVIDIA drivers (mesa)? (Usually sufficient for basic display)"; then
-             pkgs_to_install+=(mesa) # Mesa includes nouveau
+        # --- AMD ---
+        if $amd_gpu; then
+            info "AMD/ATI GPU detected."
+            if confirm "Install open-source AMD drivers (mesa, vulkan-radeon, libva-mesa-driver, mesa-vdpau)?"; then
+                pkgs_to_install+=(mesa vulkan-radeon libva-mesa-driver mesa-vdpau xf86-video-amdgpu) # Add DDX driver too
+            fi
         fi
-    fi
 
-    # Install selected packages
+        # --- NVIDIA ---
+        if $nvidia_gpu; then
+            info "NVIDIA GPU detected."
+            if confirm "Install proprietary NVIDIA drivers (nvidia-dkms, nvidia-utils, libva-nvidia-driver)? (Requires kernel headers)"; then
+                # Install headers for currently running kernel and common LTS kernel
+                # Note: This might not match the *installed* kernel if user booted fallback
+                warn "Ensuring kernel headers are installed (may take a moment)..."
+                # Safer to install common headers
+                pacman -S --needed --noconfirm linux-headers linux-lts-headers # Install for standard and LTS
+                check_status "Installing kernel headers"
+
+                pkgs_to_install+=(nvidia-dkms nvidia-utils libva-nvidia-driver) # Use DKMS version for wider kernel compatibility
+                warn "Proprietary NVIDIA drivers selected. You might need to regenerate initramfs (mkinitcpio -P) and configure modules/modesetting depending on your setup (e.g., Wayland)."
+            elif confirm "Install open-source NVIDIA drivers (mesa)? (Usually sufficient for basic display)"; then
+                pkgs_to_install+=(mesa) # Mesa includes nouveau
+            fi
+        fi
+    fi # End physical hardware detection block
+
+    # Install selected packages (VM or physical)
     if [ ${#pkgs_to_install[@]} -gt 0 ]; then
         # Remove duplicates (e.g., mesa added multiple times)
         local unique_pkgs=($(echo "${pkgs_to_install[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' '))
-        info "Installing GPU driver packages: ${unique_pkgs[*]}"
+        info "Installing GPU driver/VM packages: ${unique_pkgs[*]}"
         pacman -S --needed --noconfirm "${unique_pkgs[@]}"
-        check_status "Installing GPU packages"
-        success "Selected GPU driver packages installed."
-    else
-        info "No GPU driver packages selected for installation."
+        check_status "Installing GPU/VM packages"
+        success "Selected GPU driver/VM packages installed."
+    elif ! $vm_tools_installed; then
+         # Only show this if we didn't install VM tools OR physical drivers
+        info "No GPU driver or VM tool packages selected for installation."
     fi
 }
+
 
 # 3. Install Virtualization Tools
 install_virt_tools() {
@@ -211,9 +281,9 @@ install_virt_tools() {
 
         # Check KVM module status
         if lsmod | grep -q kvm; then
-             success "KVM modules appear to be loaded."
+            success "KVM modules appear to be loaded."
         else
-             warn "KVM kernel modules (kvm_intel or kvm_amd) not detected. Ensure virtualization is enabled in your BIOS/UEFI."
+            warn "KVM kernel modules (kvm_intel or kvm_amd) not detected. Ensure virtualization is enabled in your BIOS/UEFI."
         fi
 
         success "Virtualization tools installed and configured."
@@ -265,47 +335,66 @@ install_office() {
 setup_fstab() {
     info "--- Permanent Drive Mounting (/etc/fstab) ---"
     warn "Modifying /etc/fstab can make your system unbootable if done incorrectly!"
-    warn "This feature is experimental. Proceed with caution."
+    warn "This feature helps add *additional* drives after Arch is installed and running."
+    warn "It should be run *after* chrooting into the installed system or *after* the first boot."
+    warn "Ensure you understand which partition you are selecting."
 
     if ! confirm "Do you want to attempt to permanently mount additional drives via /etc/fstab?"; then
         info "Skipping fstab modifications."
         return
     fi
 
-    # --- CRITICAL CHECK: Verify /boot is mounted and in fstab ---
-    info "Verifying /boot partition status..."
-    if ! findmnt /boot > /dev/null; then
-        error "/boot is NOT currently mounted. Aborting fstab modification."
-        return 1 # Return non-zero to indicate failure/abort
+    # --- CRITICAL CHECK: Verify system seems booted/chrooted ---
+    info "Verifying system state (checking for mounted / and /boot in fstab)..."
+    if ! findmnt / > /dev/null; then
+        error "/ is NOT currently mounted. This script should be run from the installed system (chroot or booted). Aborting."
+        return 1
     fi
-    if ! grep -qE '^[[:space:]]*[^#]+[[:space:]]+/boot[[:space:]]' /etc/fstab; then
-        error "/boot entry NOT found in /etc/fstab. Aborting fstab modification."
-        return 1 # Return non-zero to indicate failure/abort
+     if ! findmnt /boot > /dev/null; then
+        warn "/boot is NOT currently mounted. This might be okay for some setups, but standard Arch installs require it. Proceed with extra caution."
+        # Allow proceeding but warn heavily. Might be separate /boot/efi or no separate /boot.
     fi
-    success "/boot appears to be mounted and configured in fstab. Proceeding with caution."
+    if ! grep -qE '^[[:space:]]*[^#]+[[:space:]]+/[[:space:]]' /etc/fstab; then
+        error "Root ('/') entry NOT found in /etc/fstab. Is this the installed system's fstab? Aborting."
+        return 1
+    fi
+     if ! grep -qE '^[[:space:]]*[^#]+[[:space:]]+/boot[[:space:]]' /etc/fstab && findmnt /boot > /dev/null; then
+         # Only error about missing /boot in fstab if /boot is actually mounted separately
+        error "/boot is mounted but NOT found in /etc/fstab. Aborting fstab modification."
+        return 1
+    fi
+    success "System appears to be booted or chrooted correctly. Proceeding with caution."
     # --- End Critical Check ---
 
-    info "Identifying potential partitions to mount (filesystems present, not mounted, not swap, not root, not boot)..."
+    info "Identifying potential partitions to mount (filesystems present, not mounted root/boot/swap)..."
 
     # Get list of partitions with UUID, FSTYPE, but no current MOUNTPOINT
     # Exclude root ('/'), boot ('/boot'), and swap partitions
     local root_dev boot_dev swap_devs
     root_dev=$(findmnt -n -o SOURCE /)
-    boot_dev=$(findmnt -n -o SOURCE /boot)
+    # Handle cases where /boot might not be separate
+    boot_dev=""
+    if findmnt -n -o SOURCE /boot &>/dev/null; then
+        boot_dev=$(findmnt -n -o SOURCE /boot)
+    fi
+
     # Get devices used for swap
     mapfile -t swap_devs < <(swapon --show=NAME --noheadings)
 
     # Build exclude pattern dynamically
-    local exclude_pattern="${root_dev}|${boot_dev}"
+    local exclude_pattern="${root_dev}"
+    if [[ -n "$boot_dev" ]]; then
+         exclude_pattern+="|${boot_dev}"
+    fi
     for dev in "${swap_devs[@]}"; do
         exclude_pattern+="|${dev}"
     done
-    # Also exclude partitions on the same physical disk as root/boot if possible? Complex. Keep simple first.
-    # Exclude loop devices
-    exclude_pattern+="|/dev/loop"
+    # Also exclude loop devices and CD/DVD ROM devices
+    exclude_pattern+="|/dev/loop|/dev/sr[0-9]+"
 
 
-    mapfile -t candidates < <(lsblk -dnpo NAME,UUID,FSTYPE,SIZE | awk -v exclude="^(${exclude_pattern})" '$2 != "" && $3 != "" && $3 != "swap" && $1 !~ exclude { print $1 " (" $3 ", " $4 ", UUID=" $2 ")" }')
+    mapfile -t candidates < <(lsblk -dnpo NAME,UUID,FSTYPE,SIZE,TYPE | awk -v exclude="^(${exclude_pattern})" '$2 != "" && $3 != "" && $3 != "swap" && $5 == "part" && $1 !~ exclude { print $1 " (" $3 ", " $4 ", UUID=" $2 ")" }')
+    # $5 == "part" ensures we only list partitions, not whole disks
 
     if [ ${#candidates[@]} -eq 0 ]; then
         info "No suitable unmounted partitions with filesystems found to add to fstab."
@@ -336,14 +425,15 @@ setup_fstab() {
                 elif [[ "$mount_point" =~ ^/[^[:space:]]+ ]]; then # Basic validation: starts with / and no spaces
                     # Check if mount point already exists and is a directory
                     if [[ -e "$mount_point" && ! -d "$mount_point" ]]; then
-                         error "'${mount_point}' exists but is not a directory."
+                        error "'${mount_point}' exists but is not a directory."
                     # Check if mount point is already in use (in fstab or currently mounted by something else)
-                    elif grep -qE "^\s*[^#]+\s+${mount_point}\s+" /etc/fstab; then
-                         error "'${mount_point}' is already configured in /etc/fstab."
+                    elif grep -qE "^\s*[^#]+\s+${mount_point}(\s|$)+" /etc/fstab; then
+                         # Added (\s|$) to match end of field exactly
+                        error "'${mount_point}' is already configured as a mount point in /etc/fstab."
                     elif findmnt "${mount_point}" > /dev/null; then
-                         error "'${mount_point}' is already mounted."
+                        error "'${mount_point}' is already mounted."
                     else
-                         break # Valid path
+                        break # Valid path
                     fi
                 else
                     error "Invalid mount point format. Must be an absolute path without spaces."
@@ -371,32 +461,48 @@ setup_fstab() {
                 echo "${fstab_entry}" >> /etc/fstab
                 check_status "Appending to fstab"
 
-                info "Attempting to mount all filesystems ('mount -a')..."
-                if mount -a; then
-                    success "Filesystem mounted successfully via 'mount -a'."
+                info "Reloading systemd mount units..."
+                systemctl daemon-reload
+                check_status "Running systemctl daemon-reload"
+
+
+                info "Attempting to mount the new filesystem ('mount ${mount_point}')..."
+                # Mount specifically the new point instead of 'mount -a' for safety
+                if mount "${mount_point}"; then
+                    success "Filesystem mounted successfully to '${mount_point}'."
+                    # Verify it's the correct device mounted
+                     local mounted_dev
+                     mounted_dev=$(findmnt -n -o SOURCE "${mount_point}")
+                     if [[ "$mounted_dev" == "$device_name" || "$mounted_dev" == "/dev/disk/by-uuid/${uuid}" ]]; then
+                         success "Verified correct device (${mounted_dev}) is mounted."
+                     else
+                         warn "Mounted device (${mounted_dev}) doesn't immediately match expected (${device_name} or UUID). Check 'findmnt ${mount_point}'."
+                     fi
+
                 else
-                    error "'mount -a' failed! Check /etc/fstab manually. Restoring backup from /etc/fstab.bak may be necessary."
-                    # Attempt to restore backup? Could be risky if original was bad.
-                    # cp /etc/fstab.bak /etc/fstab
-                    error "Please investigate /etc/fstab before rebooting!"
+                    error "'mount ${mount_point}' failed! Check /etc/fstab manually. The incorrect line was added."
+                    error "Attempting to restore fstab from /etc/fstab.bak..."
+                    if cp /etc/fstab.bak /etc/fstab; then
+                         success "Restored /etc/fstab from backup."
+                         # Remove the created mount point if empty? Maybe safer not to.
+                         # rm -df "${mount_point}" # Careful, only if empty
+                    else
+                         error "FAILED TO RESTORE fstab! Please manually fix /etc/fstab using /etc/fstab.bak IMMEDIATELY."
+                    fi
+                     error "Please investigate /etc/fstab before rebooting!"
                 fi
             else
                 info "Skipping fstab entry for ${device_name}."
             fi
+            # Exit select loop after processing one entry. User can run again if needed.
+            info "Exiting fstab setup after processing one entry. Run script again to add more."
+            break
         else
             error "Invalid selection."
         fi
-        # Prompt again after processing one
-        REPLY="" # Clear REPLY to force prompt regeneration
-        echo "----------------------------------------"
-        info "Found the following potential partitions:" # Show list again
-        # This re-listing logic inside select isn't ideal, better to loop outside select.
-        # Let's simplify: process one then exit this feature. User can run script again.
-         info "Exiting fstab setup after processing one entry. Run script again to add more."
-         break # Exit select loop after processing one
+        # REPLY="" # Clear REPLY - not needed since we break
+        # echo "----------------------------------------" # Not needed since we break
     done
-
-
 }
 
 
@@ -431,7 +537,7 @@ main() {
     install_gpu_drivers
     install_virt_tools
     install_office
-    # Run fstab setup carefully - check return code?
+    # Run fstab setup carefully
     setup_fstab || warn "fstab setup aborted or failed. Check messages above."
     install_codecs
 
