@@ -641,27 +641,27 @@ install_base_system() {
             ;;
         1) # KDE Plasma
             info "Selecting packages for KDE Plasma."
-            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "plasma-pa" "sddm-kcm" )
+            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "plasma-pa" "sddm-kcm" "openssh" )
             ENABLE_DM="sddm"
             ;;
         2) # GNOME
             info "Selecting packages for GNOME."
-            de_pkgs+=( "gnome" "gdm" "gnome-terminal" "nautilus" "gnome-text-editor" "gnome-control-center" "gnome-software" "eog" "file-roller" "flatpak" "firefox" "gnome-tweaks" )
+            de_pkgs+=( "gnome" "gdm" "gnome-terminal" "nautilus" "gnome-text-editor" "gnome-control-center" "gnome-software" "eog" "file-roller" "flatpak" "firefox" "gnome-tweaks" "openssh" )
             ENABLE_DM="gdm"
             ;;
         3) # XFCE
             info "Selecting packages for XFCE."
-            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" )
+            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" "openssh" )
             ENABLE_DM="lightdm"
             ;;
         4) # LXQt
              info "Selecting packages for LXQt."
-             de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" )
+             de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" "openssh" )
              ENABLE_DM="sddm"
              ;;
         5) # MATE
              info "Selecting packages for MATE."
-             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" )
+             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
              ENABLE_DM="lightdm"
              ;;
         6) # KDE Plasma (Nvidia, Nakildias Profile)
@@ -852,6 +852,30 @@ if pacman -Qs openssh &>/dev/null; then
     systemctl enable sshd.service
     check_status_chroot "Enabling sshd service"
     success "sshd enabled."
+fi
+
+# Enable cups if installed
+if pacman -Qs cups &>/dev/null; then
+    info "cups package found, enabling cups service..."
+    systemctl enable cups.service
+    check_status_chroot "Enabling cups service"
+    success "cups enabled."
+fi
+
+# Enable bluetooth if installed
+if pacman -Qs bluez &>/dev/null; then
+    info "bluez package found, enabling bluetooth service..."
+    systemctl enable bluetooth.service
+    check_status_chroot "Enabling bluez service"
+    success "bluez enabled."
+fi
+
+# Enable libvirt if installed
+if pacman -Qs libvirt &>/dev/null; then
+    info "libvirt package found, enabling libvirtd service..."
+    systemctl enable libvirtd.service
+    check_status_chroot "Enabling libvirtd service"
+    success "libvirtd enabled."
 fi
 
 info "Updating initial ramdisk environment (mkinitcpio)..."
