@@ -863,7 +863,7 @@ if pacman -Q cups &>/dev/null; then
 fi
 
 # Enable bluetooth if installed
-if pacman -Qs bluez &>/dev/null; then
+if pacman -Q bluez &>/dev/null; then
     info "bluez package found, enabling bluetooth service..."
     systemctl enable bluetooth.service
     check_status_chroot "Enabling bluez service"
@@ -871,7 +871,7 @@ if pacman -Qs bluez &>/dev/null; then
 fi
 
 # Enable libvirt if installed
-if pacman -Qs libvirt &>/dev/null; then
+if pacman -Q libvirt &>/dev/null; then
     info "libvirt package found, enabling libvirtd service..."
     systemctl enable libvirtd.service
     check_status_chroot "Enabling libvirtd service"
