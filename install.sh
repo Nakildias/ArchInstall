@@ -855,7 +855,7 @@ if pacman -Qs openssh &>/dev/null; then
 fi
 
 # Enable cups if installed
-if pacman -Qs cups &>/dev/null; then
+if pacman -Q cups &>/dev/null; then
     info "cups package found, enabling cups service..."
     systemctl enable cups.service
     check_status_chroot "Enabling cups service"
