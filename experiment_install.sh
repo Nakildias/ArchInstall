@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # Arch Linux Installation Script - Rewritten
+# Now supports Legacy BIOS!
+# By Nakildias
 
 # --- Configuration ---
-SCRIPT_VERSION="2.0-Experimental" # Updated version
+SCRIPT_VERSION="2.1-experimental" # Updated version
 DEFAULT_KERNEL="linux"
 DEFAULT_PARALLEL_DL=5
 MIN_BOOT_SIZE_MB=512 # Minimum recommended boot size in MB
@@ -98,20 +100,20 @@ main() {
 
     # User configuration gathering
     select_disk
-    configure_partitioning       # Determines PART_PREFIX, gets sizes
+    configure_partitioning        # Determines PART_PREFIX, gets sizes
     configure_hostname_user
     select_kernel
     select_desktop_environment
-    select_optional_packages     # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
+    select_optional_packages      # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
 
     # Perform installation steps
-    configure_mirrors            # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
-    partition_and_format         # Creates partitions: p1=root, p2=boot, p3=swap, [p4=BIOS Boot]
-    mount_filesystems            # Mounts p1 and p2, activates p3
-    install_base_system          # Installs packages including Steam if selected
-    configure_installed_system   # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
-    install_bootloader           # Installs GRUB (should now work for BIOS/GPT)
-    install_oh_my_zsh            # Optional
+    configure_mirrors             # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    partition_and_format          # Creates partitions: p1=root, p2=boot, p3=swap, [p4=BIOS Boot]
+    mount_filesystems             # Mounts p1 and p2, activates p3
+    install_base_system           # Installs packages including Steam if selected
+    configure_installed_system    # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    install_bootloader            # Installs GRUB (should now work for BIOS/GPT)
+    install_oh_my_zsh             # Optional
 
     # Finalization
     final_steps
@@ -143,7 +145,8 @@ check_boot_mode() {
         success "System booted in Legacy BIOS mode."
         warn "Legacy BIOS mode detected. Installation will use GPT with BIOS boot settings (requires BIOS Boot Partition)."
     fi
-    confirm "Proceed with ${BOOT_MODE} installation?" || { info "User cancelled."; exit 0; }
+    # Confirmation removed, proceeding automatically.
+    info "Proceeding with ${BOOT_MODE} installation automatically."
 }
 
 check_internet() {
@@ -327,6 +330,7 @@ select_desktop_environment() {
         "XFCE"
         "LXQt"
         "MATE"
+        "KDE Plasma (NVIDIA, Nakildias Profile)"
     )
     echo "Available environments:"
     select de_choice in "${desktops[@]}"; do
@@ -406,35 +410,24 @@ configure_mirrors() {
 
     success "Mirrorlist updated."
 
-    # Configure parallel downloads & Color in pacman.conf
-    if confirm "Enable parallel downloads and color in pacman? (Recommended)"; then
-        while true; do
-            prompt "How many parallel downloads? (1-10, default: ${DEFAULT_PARALLEL_DL}): " PARALLEL_DL_COUNT
-            PARALLEL_DL_COUNT=${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}
-            if [[ "$PARALLEL_DL_COUNT" =~ ^[1-9]$|^10$ ]]; then
-                info "Setting parallel downloads to ${PARALLEL_DL_COUNT} and enabling color."
-                # Use robust sed commands to uncomment or add lines if missing
-                sed -i -E \
-                    -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
-                    -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
-                    /etc/pacman.conf
-                if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
-                    echo "ParallelDownloads = ${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
-                fi
+    # Automatically enable parallel downloads and color in pacman.conf
+    PARALLEL_DL_COUNT=5
+    info "Automatically enabling color and setting parallel downloads to ${PARALLEL_DL_COUNT}."
+    
+    # Use robust sed commands to uncomment or add lines if missing
+    sed -i -E \
+        -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
+        -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
+        /etc/pacman.conf
+    if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
+        echo "ParallelDownloads = ${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
+    fi
 
-                sed -i -E \
-                    -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' \
-                    /etc/pacman.conf
-                 if ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
-                    echo "Color" >> /etc/pacman.conf
-                fi
-                break
-            else
-                error "Please enter a number between 1 and 10."
-            fi
-        done
-    else
-        info "Parallel downloads and color will remain at defaults (likely disabled)."
+    sed -i -E \
+        -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' \
+        /etc/pacman.conf
+    if ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
+        echo "Color" >> /etc/pacman.conf
     fi
 
     # === Enable Multilib repository IF Steam OR Enable Multilib was selected ===
@@ -479,7 +472,7 @@ partition_and_format() {
 
     info "Partitioning ${TARGET_DISK} using GPT..."
     info "Layout: Root=${ROOT_PARTITION}, Boot=${BOOT_PARTITION}, Swap=${SWAP_PARTITION:-None}"
-    [[ "$BOOT_MODE" == "BIOS" ]] && info "       + BIOS Boot Partition=${BIOS_BOOT_PARTITION} (for GRUB)"
+    [[ "$BOOT_MODE" == "BIOS" ]] && info "        + BIOS Boot Partition=${BIOS_BOOT_PARTITION} (for GRUB)"
 
     # Wipe disk thoroughly before partitioning with sgdisk
     info "Wiping ${TARGET_DISK} before partitioning..."
@@ -541,7 +534,7 @@ partition_and_format() {
     [[ -n "$SWAP_PARTITION" ]] && info " p${SWAP_PART_NUM} (${SWAP_PARTITION}): Swap"
 
     lsblk "${TARGET_DISK}" # Show the result
-    confirm "Proceed with formatting the Root, Boot, and Swap partitions?" || { error "Formatting cancelled."; exit 1; }
+    info "Automatically proceeding with formatting the Root, Boot, and Swap partitions."
 
     # --- Formatting ---
     info "Formatting partitions (Root, Boot, Swap - BIOS Boot partition is NOT formatted)..."
@@ -638,28 +631,33 @@ install_base_system() {
             ;;
         1) # KDE Plasma
             info "Selecting packages for KDE Plasma."
-            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" )
+            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "plasma-pa" "sddm-kcm" "openssh" )
             ENABLE_DM="sddm"
             ;;
         2) # GNOME
             info "Selecting packages for GNOME."
-            de_pkgs+=( "gnome" "gdm" "gnome-terminal" "nautilus" "gnome-text-editor" "gnome-control-center" "gnome-software" "eog" "file-roller" "flatpak" "firefox" "gnome-tweaks" )
+            de_pkgs+=( "gnome" "gdm" "gnome-terminal" "nautilus" "gnome-text-editor" "gnome-control-center" "gnome-software" "eog" "file-roller" "flatpak" "firefox" "gnome-tweaks" "openssh" )
             ENABLE_DM="gdm"
             ;;
         3) # XFCE
             info "Selecting packages for XFCE."
-            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" )
+            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" "openssh" )
             ENABLE_DM="lightdm"
             ;;
         4) # LXQt
              info "Selecting packages for LXQt."
-             de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" )
+             de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" "openssh" )
              ENABLE_DM="sddm"
              ;;
         5) # MATE
              info "Selecting packages for MATE."
-             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" )
+             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
              ENABLE_DM="lightdm"
+             ;;
+        6) # KDE Plasma (Nvidia, Nakildias Profile)
+             info "Selecting packages for MATE."
+             de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "nvidia" "plasma-pa" "bluedevil" "obs-studio" "spotify-launcher" "sddm-kcm" "kdenlive" "kdeconnect" "kwalletmanager" "kfind" "isoimagewriter" "kmail" "calindori" "plasma-browser-integration" "ntfs-3g" "cups" "system-config-printer" "print-manager" "krdp" "deluge-gtk" "thefuck" "git-lfs" "virt-manager" "openssh" "nmap" "traceroute" "qemu-desktop" "dnsmasq" "krdc" )
+             ENABLE_DM="sddm"
              ;;
     esac
 
@@ -673,7 +671,7 @@ install_base_system() {
 
     info "Packages to be installed:"
     echo "${all_pkgs[*]}" | fold -s -w 80 # Print packages wrapped nicely
-    confirm "Proceed with package installation using pacstrap?" || { error "Installation aborted by user."; exit 1; }
+    info "Automatically proceeding with package installation using pacstrap."
 
     # Run pacstrap (-K initializes keyring in chroot)
     pacstrap -K /mnt "${all_pkgs[@]}"
@@ -846,6 +844,30 @@ if pacman -Qs openssh &>/dev/null; then
     success "sshd enabled."
 fi
 
+# Enable cups if installed
+if pacman -Q cups &>/dev/null; then
+    info "cups package found, enabling cups service..."
+    systemctl enable cups.service
+    check_status_chroot "Enabling cups service"
+    success "cups enabled."
+fi
+
+# Enable bluetooth if installed
+if pacman -Q bluez &>/dev/null; then
+    info "bluez package found, enabling bluetooth service..."
+    systemctl enable bluetooth.service
+    check_status_chroot "Enabling bluez service"
+    success "bluez enabled."
+fi
+
+# Enable libvirt if installed
+if pacman -Q libvirt &>/dev/null; then
+    info "libvirt package found, enabling libvirtd service..."
+    systemctl enable libvirtd.service
+    check_status_chroot "Enabling libvirtd service"
+    success "libvirtd enabled."
+fi
+
 info "Updating initial ramdisk environment (mkinitcpio)..."
 # -P uses all presets (common practice)
 mkinitcpio -P
@@ -906,54 +928,48 @@ install_oh_my_zsh() {
         return
     fi
 
-    if confirm "Install Oh My Zsh for user '${USERNAME}' and root? (Requires internet)"; then
-        info "Installing Oh My Zsh (requires internet access within chroot)..."
-        local user_home="/home/${USERNAME}"
+    # Automatically install Oh My Zsh.
+    info "Automatically installing Oh My Zsh for user '${USERNAME}' and root (requires internet)..."
+    local user_home="/home/${USERNAME}"
 
-        # Install for root user
-        info "Installing Oh My Zsh for root..."
-        # Use --unattended for non-interactive install. Export vars to prevent it from launching Zsh.
-        # Try curl first, fallback to wget
-        if ! arch-chroot /mnt sh -c 'export RUNZSH=no CHSH=no; sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
-            warn "curl failed for Oh My Zsh (root), trying wget..."
-            if ! arch-chroot /mnt sh -c 'export RUNZSH=no CHSH=no; sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
-                error "Failed to download Oh My Zsh installer for root using curl and wget."
-            else
-                success "Oh My Zsh installed for root (using wget)."
-                # Optionally set a default theme for root
-                arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
-            fi
+    # Install for root user
+    info "Installing Oh My Zsh for root..."
+    # Use --unattended for non-interactive install. Export vars to prevent it from launching Zsh.
+    # Try curl first, fallback to wget
+    if ! arch-chroot /mnt sh -c 'export RUNZSH=no CHSH=no; sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
+        warn "curl failed for Oh My Zsh (root), trying wget..."
+        if ! arch-chroot /mnt sh -c 'export RUNZSH=no CHSH=no; sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
+            error "Failed to download Oh My Zsh installer for root using curl and wget."
         else
-            success "Oh My Zsh installed for root (using curl)."
+            success "Oh My Zsh installed for root (using wget)."
+            # Optionally set a default theme for root
             arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
         fi
-
-        # Install for the regular user
-        info "Installing Oh My Zsh for user ${USERNAME}..."
-        # Run as the user using sudo -u. Set HOME explicitly.
-        if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
-            warn "curl failed for Oh My Zsh (${USERNAME}), trying wget..."
-             if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
-                 error "Failed to download Oh My Zsh installer for ${USERNAME} using curl and wget."
-            else
-                 success "Oh My Zsh installed for ${USERNAME} (using wget)."
-                 # Set a different theme for the user, e.g., agnoster (requires powerline fonts)
-                 arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
-                 warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
-            fi
-        else
-            success "Oh My Zsh installed for ${USERNAME} (using curl)."
-            arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
-            warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
-        fi
-        # Ensure correct ownership of user's files
-        arch-chroot /mnt chown -R "${USERNAME}:${USERNAME}" "${user_home}"
-
     else
-        info "Oh My Zsh will not be installed."
-        info "User ${USERNAME}'s shell remains Zsh (set during user creation)."
-        info "To change shell later, use: chsh -s /bin/bash ${USERNAME}"
+        success "Oh My Zsh installed for root (using curl)."
+        arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
     fi
+
+    # Install for the regular user
+    info "Installing Oh My Zsh for user ${USERNAME}..."
+    # Run as the user using sudo -u. Set HOME explicitly.
+    if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+        warn "curl failed for Oh My Zsh (${USERNAME}), trying wget..."
+         if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+              error "Failed to download Oh My Zsh installer for ${USERNAME} using curl and wget."
+        else
+              success "Oh My Zsh installed for ${USERNAME} (using wget)."
+              # Set a different theme for the user, e.g., agnoster (requires powerline fonts)
+              arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
+              warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
+        fi
+    else
+        success "Oh My Zsh installed for ${USERNAME} (using curl)."
+        arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
+        warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
+    fi
+    # Ensure correct ownership of user's files
+    arch-chroot /mnt chown -R "${USERNAME}:${USERNAME}" "${user_home}"
 }
 
 final_steps() {
