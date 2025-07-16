@@ -1,17 +1,16 @@
 #!/bin/bash
 
 # Arch Linux Installation Script - Rewritten
-# Now supports Legacy BIOS and Hyprland!
+# Now supports Legacy BIOS!
 # By Nakildias
 
 # --- Configuration ---
-SCRIPT_VERSION="2.2-hyprland" # Updated version
+SCRIPT_VERSION="2.1-experimental" # Updated version
 DEFAULT_KERNEL="linux"
 DEFAULT_PARALLEL_DL=5
 MIN_BOOT_SIZE_MB=512 # Minimum recommended boot size in MB
 DEFAULT_REGION="America" # Default timezone region (Adjust as needed)
 DEFAULT_CITY="Toronto"   # Default timezone city (Adjust as needed)
-SETUP_HYPRLAND=false # Flag for special Hyprland setup
 
 # --- Helper Functions ---
 
@@ -114,7 +113,7 @@ main() {
     install_base_system           # Installs packages including Steam if selected
     configure_installed_system    # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
     install_bootloader            # Installs GRUB (should now work for BIOS/GPT)
-    install_oh_my_zsh             # Optional, skipped for Hyprland
+    install_oh_my_zsh             # Optional
 
     # Finalization
     final_steps
@@ -331,7 +330,6 @@ select_desktop_environment() {
         "XFCE"
         "LXQt"
         "MATE"
-        "Hyprland (AlvaroParker's Config)"
         "KDE Plasma (NVIDIA, Nakildias Profile)"
     )
     echo "Available environments:"
@@ -341,12 +339,6 @@ select_desktop_environment() {
             # Store index to determine package list later
             SELECTED_DE_INDEX=$((REPLY - 1))
             info "Selected environment: ${C_BOLD}${SELECTED_DE_NAME}${C_OFF}"
-            # Set the Hyprland flag if that option is chosen
-            if [[ "$de_choice" == "Hyprland (AlvaroParker's Config)" ]]; then
-                SETUP_HYPRLAND=true
-                warn "Hyprland selected. Oh-My-Zsh will NOT be installed by this script."
-                warn "A post-install prompt will appear on first login to complete setup."
-            fi
             break
         else
             error "Invalid selection."
@@ -421,7 +413,7 @@ configure_mirrors() {
     # Automatically enable parallel downloads and color in pacman.conf
     PARALLEL_DL_COUNT=5
     info "Automatically enabling color and setting parallel downloads to ${PARALLEL_DL_COUNT}."
-
+    
     # Use robust sed commands to uncomment or add lines if missing
     sed -i -E \
         -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
@@ -458,6 +450,7 @@ configure_mirrors() {
     check_status "Updating archlinux-keyring"
 }
 
+# --- vvv MODIFIED FUNCTION vvv ---
 partition_and_format() {
     # --- Define partition numbers based on user request ---
     local ROOT_PART_NUM=1
@@ -571,6 +564,7 @@ partition_and_format() {
 
     success "Partitions formatted according to the scheme."
 }
+# --- ^^^ MODIFIED FUNCTION ^^^ ---
 
 mount_filesystems() {
     info "Mounting filesystems..."
@@ -651,27 +645,20 @@ install_base_system() {
             ENABLE_DM="lightdm"
             ;;
         4) # LXQt
-            info "Selecting packages for LXQt."
-            de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" "openssh" )
-            ENABLE_DM="sddm"
-            ;;
+             info "Selecting packages for LXQt."
+             de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" "openssh" )
+             ENABLE_DM="sddm"
+             ;;
         5) # MATE
-            info "Selecting packages for MATE."
-            de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
-            ENABLE_DM="lightdm"
-            ;;
-        6) # Hyprland (AlvaroParker's Config)
-            info "Selecting base packages for Hyprland."
-            warn "Additional packages (especially from AUR) will be installed by the post-install script."
-            # These are dependencies from official repos. The post-install script will handle AUR.
-            de_pkgs+=( "hyprland" "kitty" "wofi" "mako" "thunar" "polkit-kde-agent" "pipewire" "wireplumber" "pavucontrol" "starship" "grim" "slurp" "xdg-desktop-portal-hyprland" "qt5-wayland" "qt6-wayland" "noto-fonts-emoji" "stow" "firefox" "lsd" "bat" )
-            ENABLE_DM="" # No Display Manager, will boot to TTY
-            ;;
-        7) # KDE Plasma (Nvidia, Nakildias Profile)
-            info "Selecting packages for KDE Plasma (NVIDIA Profile)."
-            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "nvidia" "plasma-pa" "bluedevil" "obs-studio" "spotify-launcher" "sddm-kcm" "kdenlive" "kdeconnect" "kwalletmanager" "kfind" "isoimagewriter" "kmail" "calindori" "plasma-browser-integration" "ntfs-3g" "cups" "system-config-printer" "print-manager" "krdp" "deluge-gtk" "thefuck" "git-lfs" "virt-manager" "openssh" "nmap" "traceroute" "qemu-desktop" "dnsmasq" "krdc" )
-            ENABLE_DM="sddm"
-            ;;
+             info "Selecting packages for MATE."
+             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
+             ENABLE_DM="lightdm"
+             ;;
+        6) # KDE Plasma (Nvidia, Nakildias Profile)
+             info "Selecting packages for MATE."
+             de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "nvidia" "plasma-pa" "bluedevil" "obs-studio" "spotify-launcher" "sddm-kcm" "kdenlive" "kdeconnect" "kwalletmanager" "kfind" "isoimagewriter" "kmail" "calindori" "plasma-browser-integration" "ntfs-3g" "cups" "system-config-printer" "print-manager" "krdp" "deluge-gtk" "thefuck" "git-lfs" "virt-manager" "openssh" "nmap" "traceroute" "qemu-desktop" "dnsmasq" "krdc" )
+             ENABLE_DM="sddm"
+             ;;
     esac
 
     # Optional packages based on user selection
@@ -715,8 +702,11 @@ configure_installed_system() {
     check_status "Copying mirrorlist to /mnt"
     cp /etc/pacman.conf /mnt/etc/pacman.conf
     check_status "Copying pacman.conf to /mnt"
+    # Copy DNS config if needed (NetworkManager usually handles this)
+    # cp /etc/resolv.conf /mnt/etc/resolv.conf
 
     # Create chroot configuration script using Heredoc
+    # This prevents issues with quoting and variable expansion inside chroot
     info "Creating chroot configuration script..."
     cat <<CHROOT_SCRIPT_EOF > /mnt/configure_chroot.sh
 #!/bin/bash
@@ -733,16 +723,15 @@ USER_PASSWORD="${USER_PASSWORD}"
 ROOT_PASSWORD="${ROOT_PASSWORD}"
 ENABLE_DM="${ENABLE_DM}"
 INSTALL_STEAM=${INSTALL_STEAM}
-ENABLE_MULTILIB=${ENABLE_MULTILIB}
-SETUP_HYPRLAND=${SETUP_HYPRLAND}
+ENABLE_MULTILIB=${ENABLE_MULTILIB} # Pass the new variable
 DEFAULT_REGION="${DEFAULT_REGION}"
 DEFAULT_CITY="${DEFAULT_CITY}"
-PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}"
+PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}" # Get count from outer script or default
 
-# Chroot Logging functions
+# Chroot Logging functions (redefined for clarity inside chroot)
 C_OFF='\033[0m'; C_RED='\033[0;31m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[0;33m'; C_BLUE='\033[0;34m'; C_BOLD='\033[1m'
 info() { echo -e "\${C_BLUE}\${C_BOLD}[CHROOT INFO]\${C_OFF} \$1"; }
-error() { echo -e "\${C_RED}\${C_BOLD}[CHROOT ERROR]\${C_OFF} \$1"; exit 1; }
+error() { echo -e "\${C_RED}\${C_BOLD}[CHROOT ERROR]\${C_OFF} \$1"; exit 1; } # Exit on error inside chroot
 success() { echo -e "\${C_GREEN}\${C_BOLD}[CHROOT SUCCESS]\${C_OFF} \$1"; }
 warn() { echo -e "\${C_YELLOW}\${C_BOLD}[CHROOT WARN]\${C_OFF} \$1"; }
 check_status_chroot() {
@@ -756,12 +745,15 @@ check_status_chroot() {
 info "Setting timezone to \${DEFAULT_REGION}/\${DEFAULT_CITY}..."
 ln -sf "/usr/share/zoneinfo/\${DEFAULT_REGION}/\${DEFAULT_CITY}" /etc/localtime
 check_status_chroot "Linking timezone"
-hwclock --systohc
-check_status_chroot "Setting hardware clock"
+hwclock --systohc # Set hardware clock from system time
+check_status_chroot "Setting hardware clock (hwclock --systohc)"
 success "Timezone set."
 
 info "Configuring Locale (en_US.UTF-8)..."
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+# Add other locales if needed by uncommenting below
+# echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen
+# echo "fr_CA.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 check_status_chroot "Generating locales"
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
@@ -769,6 +761,7 @@ success "Locale configured."
 
 info "Setting hostname to '\${HOSTNAME}'..."
 echo "\${HOSTNAME}" > /etc/hostname
+# Configure /etc/hosts
 cat <<EOF_HOSTS > /etc/hosts
 127.0.0.1   localhost
 ::1         localhost
@@ -783,6 +776,7 @@ check_status_chroot "Setting root password via chpasswd"
 success "Root password set."
 
 info "Creating user '\${USERNAME}' with Zsh shell..."
+# Create user, home dir (-m), add to wheel group (-G), set shell (-s)
 useradd -m -G wheel -s /bin/zsh "\${USERNAME}"
 check_status_chroot "Creating user \${USERNAME}"
 echo "\${USERNAME}:\${USER_PASSWORD}" | chpasswd
@@ -790,6 +784,8 @@ check_status_chroot "Setting password for \${USERNAME} via chpasswd"
 success "User '\${USERNAME}' created, password set, added to 'wheel' group."
 
 info "Configuring sudo for 'wheel' group..."
+# Uncomment the '%wheel ALL=(ALL:ALL) ALL' line in /etc/sudoers
+# Use visudo for safety if possible, but sed is common in scripts
 if grep -q -E '^#[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL' /etc/sudoers; then
     sed -i -E 's/^#[[:space:]]*(%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL)/\1/' /etc/sudoers
     check_status_chroot "Uncommenting wheel group in sudoers"
@@ -800,62 +796,9 @@ else
     error "Could not find the wheel group line in /etc/sudoers to uncomment. Manual configuration needed."
 fi
 
-# === HYPRLAND POST-INSTALL SETUP SCRIPT ===
-if [[ "\${SETUP_HYPRLAND}" == "true" ]]; then
-    info "Adding one-time Hyprland setup script to user's .zprofile"
-    # Use single quotes around 'SETUP_SCRIPT_EOF' to prevent variable expansion here.
-    # The script will be written verbatim to the user's .zprofile.
-    cat <<'SETUP_SCRIPT_EOF' >> "/home/\${USERNAME}/.zprofile"
-
-# --- AlvaroParker Hyprland Config Installer ---
-if [ ! -f ~/.config-setup-complete ] && [ "\${XDG_VTNR}" -eq 1 ]; then
-    ( # Run in a subshell to not mess up the parent login shell
-    clear
-    echo -e "\n\033[1;32mWelcome to your new Arch Linux + Hyprland system!\033[0m"
-    echo "The final step is to install AlvaroParker's configuration files."
-    echo
-    read -p "Do you want to install the dotfiles now? [Y/n]: " choice
-    case "\${choice,,}" in
-        y|yes|"")
-            echo "Starting setup..."
-            if ! command -v git &> /dev/null; then
-                echo -e "\033[1;31mError: 'git' is not installed. Please log in, run 'sudo pacman -S git', and log back in.\033[0m"
-                exit
-            fi
-            cd ~/ || exit
-            echo "Cloning repository from GitHub..."
-            git clone https://github.com/AlvaroParker/config.git
-            if [ -d "config" ]; then
-                cd config
-                chmod +x install.sh
-                echo "Running the installer script (./install.sh)..."
-                ./install.sh
-                echo "Installation script finished."
-                touch ~/.config-setup-complete
-                echo -e "\n\033[1;32mSetup is complete. Please reboot now to enter Hyprland.\033[0m"
-                echo -e "Type: \033[1;33msudo reboot\033[0m"
-                # The script from the repo handles auto-starting Hyprland after this.
-            else
-                echo -e "\033[1;31mError: Failed to clone the repository. Please check your internet connection.\033[0m"
-                touch ~/.config-setup-complete # Mark as done to avoid an infinite loop
-            fi
-            ;;
-        *)
-            echo "Skipping setup."
-            touch ~/.config-setup-complete # Mark as done to avoid asking again
-            echo "You can run the setup manually later by cloning AlvaroParker's 'config' repo and running its install.sh."
-            ;;
-    esac
-    ) # End of subshell
-fi
-# --- End of Installer ---
-SETUP_SCRIPT_EOF
-    chown "\${USERNAME}:\${USERNAME}" "/home/\${USERNAME}/.zprofile"
-    check_status_chroot "Setting permissions on .zprofile"
-fi
-
-
+# === Ensure Pacman config (ParallelDownloads, Color, Multilib) is correct ===
 info "Ensuring Pacman configuration inside chroot..."
+# Re-apply ParallelDownloads and Color settings using sed (idempotent)
 sed -i -E \
     -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
     -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
@@ -863,11 +806,14 @@ sed -i -E \
 if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
     echo "ParallelDownloads = \${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
 fi
-sed -i -E -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' /etc/pacman.conf
-if ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
+sed -i -E \
+    -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' \
+    /etc/pacman.conf
+  if ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
     echo "Color" >> /etc/pacman.conf
 fi
 
+# Ensure Multilib is enabled IF Steam OR Enable Multilib was selected
 if [[ "\${INSTALL_STEAM}" == "true" ]] || [[ "\${ENABLE_MULTILIB}" == "true" ]]; then
     info "Ensuring Multilib repository is enabled in chroot pacman.conf..."
     sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
@@ -880,33 +826,41 @@ systemctl enable NetworkManager.service
 check_status_chroot "Enabling NetworkManager service"
 success "NetworkManager enabled."
 
+# Enable Display Manager if a desktop environment was selected
 if [[ -n "\${ENABLE_DM}" ]]; then
     info "Enabling Display Manager service (\${ENABLE_DM})..."
     systemctl enable "\${ENABLE_DM}.service"
     check_status_chroot "Enabling \${ENABLE_DM} service"
     success "\${ENABLE_DM} enabled."
 else
-    info "No Display Manager to enable (Server/Hyprland install or manual setup selected)."
+    info "No Display Manager to enable (Server install or manual setup selected)."
 fi
 
+# Enable SSHD if installed (typically for server installs)
 if pacman -Qs openssh &>/dev/null; then
     info "OpenSSH package found, enabling sshd service..."
     systemctl enable sshd.service
     check_status_chroot "Enabling sshd service"
     success "sshd enabled."
 fi
+
+# Enable cups if installed
 if pacman -Q cups &>/dev/null; then
     info "cups package found, enabling cups service..."
     systemctl enable cups.service
     check_status_chroot "Enabling cups service"
     success "cups enabled."
 fi
+
+# Enable bluetooth if installed
 if pacman -Q bluez &>/dev/null; then
     info "bluez package found, enabling bluetooth service..."
     systemctl enable bluetooth.service
     check_status_chroot "Enabling bluez service"
     success "bluez enabled."
 fi
+
+# Enable libvirt if installed
 if pacman -Q libvirt &>/dev/null; then
     info "libvirt package found, enabling libvirtd service..."
     systemctl enable libvirtd.service
@@ -915,6 +869,7 @@ if pacman -Q libvirt &>/dev/null; then
 fi
 
 info "Updating initial ramdisk environment (mkinitcpio)..."
+# -P uses all presets (common practice)
 mkinitcpio -P
 check_status_chroot "Running mkinitcpio -P"
 success "Initramfs updated."
@@ -928,9 +883,11 @@ CHROOT_SCRIPT_EOF
     check_status "Setting execute permissions on chroot script"
 
     info "Executing configuration script inside chroot environment..."
+    # Run the script within the chroot
     arch-chroot /mnt /configure_chroot.sh
     check_status "Executing chroot configuration script"
 
+    # Clean up the script file from the installed system
     info "Removing chroot configuration script..."
     rm /mnt/configure_chroot.sh
     check_status "Removing chroot script"
@@ -940,17 +897,23 @@ CHROOT_SCRIPT_EOF
 
 install_bootloader() {
     info "Installing and configuring GRUB bootloader for ${BOOT_MODE}..."
+    # Now using GPT for both modes. BIOS mode requires the BIOS Boot Partition created earlier.
+
     if [[ "$BOOT_MODE" == "UEFI" ]]; then
         info "Installing GRUB for UEFI..."
+        # Install to EFI partition (mounted at /boot), specify bootloader ID
         arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ARCH --recheck
         check_status "Running grub-install for UEFI"
     else # BIOS on GPT
         info "Installing GRUB for BIOS/GPT on ${TARGET_DISK}..."
+        # Install to the disk. GRUB should automatically find the BIOS Boot Partition (p4)
+        # on the GPT disk to embed its core.img. No --force or blocklist needed.
         arch-chroot /mnt grub-install --target=i386-pc --recheck "${TARGET_DISK}"
         check_status "Running grub-install for BIOS on ${TARGET_DISK}"
     fi
 
     info "Generating GRUB configuration file..."
+    # Generate the grub.cfg file (same command for both modes)
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     check_status "Running grub-mkconfig"
 
@@ -959,28 +922,27 @@ install_bootloader() {
 
 
 install_oh_my_zsh() {
-    # NEW: Skip this entirely if Hyprland profile is selected
-    if [[ "$SETUP_HYPRLAND" == "true" ]]; then
-        info "Hyprland profile selected, skipping Oh My Zsh installation."
-        info "AlvaroParker's script will handle Zsh configuration."
-        return
-    fi
-
+    # Check if zsh was installed (it's in base_pkgs now)
     if ! arch-chroot /mnt pacman -Qs zsh &>/dev/null; then
         warn "zsh package not found in chroot. Skipping Oh My Zsh installation."
         return
     fi
 
+    # Automatically install Oh My Zsh.
     info "Automatically installing Oh My Zsh for user '${USERNAME}' and root (requires internet)..."
     local user_home="/home/${USERNAME}"
 
+    # Install for root user
     info "Installing Oh My Zsh for root..."
+    # Use --unattended for non-interactive install. Export vars to prevent it from launching Zsh.
+    # Try curl first, fallback to wget
     if ! arch-chroot /mnt sh -c 'export RUNZSH=no CHSH=no; sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
         warn "curl failed for Oh My Zsh (root), trying wget..."
         if ! arch-chroot /mnt sh -c 'export RUNZSH=no CHSH=no; sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'; then
             error "Failed to download Oh My Zsh installer for root using curl and wget."
         else
             success "Oh My Zsh installed for root (using wget)."
+            # Optionally set a default theme for root
             arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
         fi
     else
@@ -988,13 +950,16 @@ install_oh_my_zsh() {
         arch-chroot /mnt sed -i 's/^ZSH_THEME=.*/ZSH_THEME="robbyrussell"/' /root/.zshrc
     fi
 
+    # Install for the regular user
     info "Installing Oh My Zsh for user ${USERNAME}..."
+    # Run as the user using sudo -u. Set HOME explicitly.
     if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
         warn "curl failed for Oh My Zsh (${USERNAME}), trying wget..."
          if ! arch-chroot /mnt sudo -u "${USERNAME}" env HOME="${user_home}" RUNZSH=no CHSH=no sh -c "$(wget -qO- https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
               error "Failed to download Oh My Zsh installer for ${USERNAME} using curl and wget."
         else
               success "Oh My Zsh installed for ${USERNAME} (using wget)."
+              # Set a different theme for the user, e.g., agnoster (requires powerline fonts)
               arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
               warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
         fi
@@ -1003,6 +968,7 @@ install_oh_my_zsh() {
         arch-chroot /mnt sed -i "s/^ZSH_THEME=.*/ZSH_THEME=\"agnoster\"/" "${user_home}/.zshrc"
         warn "Set Zsh theme to 'agnoster' for ${USERNAME}. Install 'powerline-fonts' package after reboot for proper display."
     fi
+    # Ensure correct ownership of user's files
     arch-chroot /mnt chown -R "${USERNAME}:${USERNAME}" "${user_home}"
 }
 
@@ -1011,16 +977,13 @@ final_steps() {
     info "It is strongly recommended to review the installed system before rebooting."
     info "You can use 'arch-chroot /mnt' to enter the installed system and check configurations (e.g., /etc/fstab, users, services)."
     warn "Ensure you remove the installation medium (USB/CD/ISO) before rebooting."
-    if [[ "$SETUP_HYPRLAND" == "true" ]]; then
-        warn "IMPORTANT FOR HYPRLAND USERS:"
-        warn "After rebooting, you will be in a TTY. Log in as '${USERNAME}'."
-        warn "You will be prompted to complete the installation. Follow the on-screen instructions."
-    fi
 
     info "Attempting final unmount of filesystems..."
     sync # Sync filesystem buffers before unmounting
+    # Attempt recursive unmount, use -l for lazy unmount as fallback, ignore errors
     umount -R /mnt/boot &>/dev/null || umount -l /mnt/boot &>/dev/null || true
     umount -R /mnt &>/dev/null || umount -l /mnt &>/dev/null || true
+    # Deactivate swap if it was used and variable is non-empty
     if [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]]; then
         swapoff "${SWAP_PARTITION}" &>/dev/null || true
     fi
