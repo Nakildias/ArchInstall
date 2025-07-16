@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Arch Linux Installation Script - Rewritten with Hyprland support
-# Based on original script by Nakildias
-# Hyprland integration by Gemini
+# Arch Linux Installation Script - Rewritten
+# Now supports Legacy BIOS and Hyprland!
+# By Nakildias
 
 # --- Configuration ---
 SCRIPT_VERSION="2.2-hyprland" # Updated version
@@ -11,6 +11,7 @@ DEFAULT_PARALLEL_DL=5
 MIN_BOOT_SIZE_MB=512 # Minimum recommended boot size in MB
 DEFAULT_REGION="America" # Default timezone region (Adjust as needed)
 DEFAULT_CITY="Toronto"   # Default timezone city (Adjust as needed)
+SETUP_HYPRLAND=false # Flag for special Hyprland setup
 
 # --- Helper Functions ---
 
@@ -67,7 +68,7 @@ cleanup() {
     # Check if SWAP_PARTITION was assigned before trying to use it in error message
     local swap_info=""
     if [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]]; then
-        swap_info=" and swap ${SWAP_PARTITION}"
+       swap_info=" and swap ${SWAP_PARTITION}"
     fi
 
     error "--- SCRIPT INTERRUPTED OR FAILED ---"
@@ -79,7 +80,7 @@ cleanup() {
     umount -R /mnt &>/dev/null
     # Deactivate swap if it was activated and variable exists
     if [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]]; then
-        swapoff "${SWAP_PARTITION}" &>/dev/null
+       swapoff "${SWAP_PARTITION}" &>/dev/null
     fi
     info "Cleanup finished. If the script failed, some resources might still be mounted/active."
     info "Check with 'lsblk' and 'mount'."
@@ -100,20 +101,20 @@ main() {
 
     # User configuration gathering
     select_disk
-    configure_partitioning      # Determines PART_PREFIX, gets sizes
+    configure_partitioning        # Determines PART_PREFIX, gets sizes
     configure_hostname_user
     select_kernel
-    select_desktop_environment  # Sets DE choice and INSTALL_HYPRLAND flag
-    select_optional_packages    # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
+    select_desktop_environment
+    select_optional_packages      # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
 
     # Perform installation steps
-    configure_mirrors           # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
-    partition_and_format        # Creates partitions: p1=root, p2=boot, p3=swap, [p4=BIOS Boot]
-    mount_filesystems           # Mounts p1 and p2, activates p3
-    install_base_system         # Installs packages including Steam if selected
-    configure_installed_system  # Configures chroot, ensures multilib, installs Hyprland dotfiles
-    install_bootloader          # Installs GRUB (should now work for BIOS/GPT)
-    install_oh_my_zsh           # Optional
+    configure_mirrors             # Enables multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    partition_and_format          # Creates partitions: p1=root, p2=boot, p3=swap, [p4=BIOS Boot]
+    mount_filesystems             # Mounts p1 and p2, activates p3
+    install_base_system           # Installs packages including Steam if selected
+    configure_installed_system    # Configures chroot, ensures multilib based on INSTALL_STEAM or ENABLE_MULTILIB
+    install_bootloader            # Installs GRUB (should now work for BIOS/GPT)
+    install_oh_my_zsh             # Optional, skipped for Hyprland
 
     # Finalization
     final_steps
@@ -323,8 +324,6 @@ select_kernel() {
 
 select_desktop_environment() {
     info "Selecting Desktop Environment or Server..."
-    # Flag for Hyprland installation logic
-    INSTALL_HYPRLAND=false
     desktops=(
         "Server (No GUI)"
         "KDE Plasma"
@@ -332,7 +331,7 @@ select_desktop_environment() {
         "XFCE"
         "LXQt"
         "MATE"
-        "Hyprland (AlvaroParker's dotfiles)"
+        "Hyprland (AlvaroParker's Config)"
         "KDE Plasma (NVIDIA, Nakildias Profile)"
     )
     echo "Available environments:"
@@ -342,12 +341,12 @@ select_desktop_environment() {
             # Store index to determine package list later
             SELECTED_DE_INDEX=$((REPLY - 1))
             info "Selected environment: ${C_BOLD}${SELECTED_DE_NAME}${C_OFF}"
-            
-            # Set flag if Hyprland is chosen
-            if [[ "$SELECTED_DE_NAME" == "Hyprland (AlvaroParker's dotfiles)" ]]; then
-                INSTALL_HYPRLAND=true
+            # Set the Hyprland flag if that option is chosen
+            if [[ "$de_choice" == "Hyprland (AlvaroParker's Config)" ]]; then
+                SETUP_HYPRLAND=true
+                warn "Hyprland selected. Oh-My-Zsh will NOT be installed by this script."
+                warn "A post-install prompt will appear on first login to complete setup."
             fi
-            
             break
         else
             error "Invalid selection."
@@ -384,7 +383,7 @@ select_optional_packages() {
     else
         # Only mention disabling if Steam wasn't selected either
         if [ "$INSTALL_STEAM" = "false" ]; then
-            info "User chose not to explicitly enable the multilib repository (and Steam wasn't selected)."
+             info "User chose not to explicitly enable the multilib repository (and Steam wasn't selected)."
         fi
     fi
 }
@@ -420,15 +419,16 @@ configure_mirrors() {
     success "Mirrorlist updated."
 
     # Automatically enable parallel downloads and color in pacman.conf
-    info "Automatically enabling color and setting parallel downloads to ${DEFAULT_PARALLEL_DL}."
-    
+    PARALLEL_DL_COUNT=5
+    info "Automatically enabling color and setting parallel downloads to ${PARALLEL_DL_COUNT}."
+
     # Use robust sed commands to uncomment or add lines if missing
     sed -i -E \
-        -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"$DEFAULT_PARALLEL_DL"'/' \
-        -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"$DEFAULT_PARALLEL_DL"'/' \
+        -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
+        -e 's/^[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
         /etc/pacman.conf
     if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
-        echo "ParallelDownloads = ${DEFAULT_PARALLEL_DL}" >> /etc/pacman.conf
+        echo "ParallelDownloads = ${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
     fi
 
     sed -i -E \
@@ -458,7 +458,6 @@ configure_mirrors() {
     check_status "Updating archlinux-keyring"
 }
 
-# --- vvv MODIFIED FUNCTION vvv ---
 partition_and_format() {
     # --- Define partition numbers based on user request ---
     local ROOT_PART_NUM=1
@@ -572,7 +571,6 @@ partition_and_format() {
 
     success "Partitions formatted according to the scheme."
 }
-# --- ^^^ MODIFIED FUNCTION ^^^ ---
 
 mount_filesystems() {
     info "Mounting filesystems..."
@@ -662,20 +660,15 @@ install_base_system() {
             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
             ENABLE_DM="lightdm"
             ;;
-        6) # Hyprland (AlvaroParker's dotfiles)
-            info "Selecting packages for Hyprland..."
-            de_pkgs+=(
-                "hyprland" "hyprpaper" "hyprpicker" "hypridle" "hyprlock" "xdg-desktop-portal-hyprland"
-                "waybar" "swww" "mako" "sddm" "kitty" "thunar" "thunar-volman" "thunar-archive-plugin" "file-roller"
-                "polkit-kde-agent" "pavucontrol" "brightnessctl" "bluez" "bluez-utils" "blueman" "network-manager-applet"
-                "neovim" "viewnior" "qt5-wayland" "qt6-wayland" "noto-fonts-emoji" "ttf-jetbrains-mono-nerd"
-                "swappy" "grim" "slurp" "pamixer" "playerctl" "mpv" "flatpak" "firefox" "openssh"
-            )
-            # AUR package 'rofi-lbonn-wayland-git' will be installed inside chroot
-            ENABLE_DM="sddm"
+        6) # Hyprland (AlvaroParker's Config)
+            info "Selecting base packages for Hyprland."
+            warn "Additional packages (especially from AUR) will be installed by the post-install script."
+            # These are dependencies from official repos. The post-install script will handle AUR.
+            de_pkgs+=( "hyprland" "kitty" "wofi" "mako" "thunar" "polkit-kde-agent" "pipewire" "wireplumber" "pavucontrol" "starship" "grim" "slurp" "xdg-desktop-portal-hyprland" "qt5-wayland" "qt6-wayland" "noto-fonts-emoji" "stow" "firefox" "lsd" "bat" )
+            ENABLE_DM="" # No Display Manager, will boot to TTY
             ;;
         7) # KDE Plasma (Nvidia, Nakildias Profile)
-            info "Selecting packages for KDE Plasma (Nvidia Profile)."
+            info "Selecting packages for KDE Plasma (NVIDIA Profile)."
             de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "nvidia" "plasma-pa" "bluedevil" "obs-studio" "spotify-launcher" "sddm-kcm" "kdenlive" "kdeconnect" "kwalletmanager" "kfind" "isoimagewriter" "kmail" "calindori" "plasma-browser-integration" "ntfs-3g" "cups" "system-config-printer" "print-manager" "krdp" "deluge-gtk" "thefuck" "git-lfs" "virt-manager" "openssh" "nmap" "traceroute" "qemu-desktop" "dnsmasq" "krdc" )
             ENABLE_DM="sddm"
             ;;
@@ -722,11 +715,8 @@ configure_installed_system() {
     check_status "Copying mirrorlist to /mnt"
     cp /etc/pacman.conf /mnt/etc/pacman.conf
     check_status "Copying pacman.conf to /mnt"
-    # Copy DNS config if needed (NetworkManager usually handles this)
-    # cp /etc/resolv.conf /mnt/etc/resolv.conf
 
     # Create chroot configuration script using Heredoc
-    # This prevents issues with quoting and variable expansion inside chroot
     info "Creating chroot configuration script..."
     cat <<CHROOT_SCRIPT_EOF > /mnt/configure_chroot.sh
 #!/bin/bash
@@ -744,15 +734,15 @@ ROOT_PASSWORD="${ROOT_PASSWORD}"
 ENABLE_DM="${ENABLE_DM}"
 INSTALL_STEAM=${INSTALL_STEAM}
 ENABLE_MULTILIB=${ENABLE_MULTILIB}
-INSTALL_HYPRLAND=${INSTALL_HYPRLAND} # Hyprland flag
+SETUP_HYPRLAND=${SETUP_HYPRLAND}
 DEFAULT_REGION="${DEFAULT_REGION}"
 DEFAULT_CITY="${DEFAULT_CITY}"
-PARALLEL_DL_COUNT="${DEFAULT_PARALLEL_DL}"
+PARALLEL_DL_COUNT="${PARALLEL_DL_COUNT:-$DEFAULT_PARALLEL_DL}"
 
-# Chroot Logging functions (redefined for clarity inside chroot)
+# Chroot Logging functions
 C_OFF='\033[0m'; C_RED='\033[0;31m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[0;33m'; C_BLUE='\033[0;34m'; C_BOLD='\033[1m'
 info() { echo -e "\${C_BLUE}\${C_BOLD}[CHROOT INFO]\${C_OFF} \$1"; }
-error() { echo -e "\${C_RED}\${C_BOLD}[CHROOT ERROR]\${C_OFF} \$1"; exit 1; } # Exit on error inside chroot
+error() { echo -e "\${C_RED}\${C_BOLD}[CHROOT ERROR]\${C_OFF} \$1"; exit 1; }
 success() { echo -e "\${C_GREEN}\${C_BOLD}[CHROOT SUCCESS]\${C_OFF} \$1"; }
 warn() { echo -e "\${C_YELLOW}\${C_BOLD}[CHROOT WARN]\${C_OFF} \$1"; }
 check_status_chroot() {
@@ -766,15 +756,12 @@ check_status_chroot() {
 info "Setting timezone to \${DEFAULT_REGION}/\${DEFAULT_CITY}..."
 ln -sf "/usr/share/zoneinfo/\${DEFAULT_REGION}/\${DEFAULT_CITY}" /etc/localtime
 check_status_chroot "Linking timezone"
-hwclock --systohc # Set hardware clock from system time
-check_status_chroot "Setting hardware clock (hwclock --systohc)"
+hwclock --systohc
+check_status_chroot "Setting hardware clock"
 success "Timezone set."
 
 info "Configuring Locale (en_US.UTF-8)..."
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-# Add other locales if needed by uncommenting below
-# echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen
-# echo "fr_CA.UTF-8 UTF-8" >> /etc/locale.gen
 locale-gen
 check_status_chroot "Generating locales"
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
@@ -782,7 +769,6 @@ success "Locale configured."
 
 info "Setting hostname to '\${HOSTNAME}'..."
 echo "\${HOSTNAME}" > /etc/hostname
-# Configure /etc/hosts
 cat <<EOF_HOSTS > /etc/hosts
 127.0.0.1   localhost
 ::1         localhost
@@ -797,7 +783,6 @@ check_status_chroot "Setting root password via chpasswd"
 success "Root password set."
 
 info "Creating user '\${USERNAME}' with Zsh shell..."
-# Create user, home dir (-m), add to wheel group (-G), set shell (-s)
 useradd -m -G wheel -s /bin/zsh "\${USERNAME}"
 check_status_chroot "Creating user \${USERNAME}"
 echo "\${USERNAME}:\${USER_PASSWORD}" | chpasswd
@@ -805,8 +790,6 @@ check_status_chroot "Setting password for \${USERNAME} via chpasswd"
 success "User '\${USERNAME}' created, password set, added to 'wheel' group."
 
 info "Configuring sudo for 'wheel' group..."
-# Uncomment the '%wheel ALL=(ALL:ALL) ALL' line in /etc/sudoers
-# Use visudo for safety if possible, but sed is common in scripts
 if grep -q -E '^#[[:space:]]*%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL' /etc/sudoers; then
     sed -i -E 's/^#[[:space:]]*(%wheel[[:space:]]+ALL=\(ALL(:ALL)?\)[[:space:]]+ALL)/\1/' /etc/sudoers
     check_status_chroot "Uncommenting wheel group in sudoers"
@@ -817,7 +800,63 @@ else
     error "Could not find the wheel group line in /etc/sudoers to uncomment. Manual configuration needed."
 fi
 
-# === Ensure Pacman config (ParallelDownloads, Color, Multilib) is correct ===
+# === HYPRLAND POST-INSTALL SETUP SCRIPT ===
+if [[ "\${SETUP_HYPRLAND}" == "true" ]]; then
+    info "Adding one-time Hyprland setup script to user's .zprofile"
+    # Use single quotes around 'SETUP_SCRIPT_EOF' to prevent variable expansion here.
+    # The script will be written verbatim to the user's .zprofile.
+    cat <<'SETUP_SCRIPT_EOF' >> "/home/\${USERNAME}/.zprofile"
+
+# --- AlvaroParker Hyprland Config Installer ---
+if [ ! -f ~/.config-setup-complete ] && [ "\${XDG_VTNR}" -eq 1 ]; then
+    ( # Run in a subshell to not mess up the parent login shell
+    clear
+    echo -e "\n\033[1;32mWelcome to your new Arch Linux + Hyprland system!\033[0m"
+    echo "The final step is to install AlvaroParker's configuration files."
+    echo
+    # ZSH syntax for prompt: read "variable?Prompt text"
+    read -r "choice?Do you want to install the dotfiles now? [Y/n]: "
+    # ZSH syntax for lowercase: ${variable:l}
+    case "\${choice:l}" in
+        y|yes|"")
+            echo "Starting setup..."
+            if ! command -v git &> /dev/null; then
+                echo -e "\033[1;31mError: 'git' is not installed. Please log in, run 'sudo pacman -S git', and log back in.\033[0m"
+                exit
+            fi
+            cd ~/ || exit
+            echo "Cloning repository from GitHub..."
+            git clone https://github.com/AlvaroParker/config.git
+            if [ -d "config" ]; then
+                cd config
+                chmod +x install.sh
+                echo "Running the installer script (./install.sh)..."
+                ./install.sh
+                echo "Installation script finished."
+                touch ~/.config-setup-complete
+                echo -e "\n\033[1;32mSetup is complete. Please reboot now to enter Hyprland.\033[0m"
+                echo -e "Type: \033[1;33msudo reboot\033[0m"
+                # The script from the repo handles auto-starting Hyprland after this.
+            else
+                echo -e "\033[1;31mError: Failed to clone the repository. Please check your internet connection.\033[0m"
+                touch ~/.config-setup-complete # Mark as done to avoid an infinite loop
+            fi
+            ;;
+        *)
+            echo "Skipping setup."
+            touch ~/.config-setup-complete # Mark as done to avoid asking again
+            echo "You can run the setup manually later by cloning AlvaroParker's 'config' repo and running its install.sh."
+            ;;
+    esac
+    ) # End of subshell
+fi
+# --- End of Installer ---
+SETUP_SCRIPT_EOF
+    chown "\${USERNAME}:\${USERNAME}" "/home/\${USERNAME}/.zprofile"
+    check_status_chroot "Setting permissions on .zprofile"
+fi
+
+
 info "Ensuring Pacman configuration inside chroot..."
 sed -i -E \
     -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"\${PARALLEL_DL_COUNT}"'/' \
@@ -826,78 +865,17 @@ sed -i -E \
 if ! grep -q -E "^[[:space:]]*ParallelDownloads" /etc/pacman.conf; then
     echo "ParallelDownloads = \${PARALLEL_DL_COUNT}" >> /etc/pacman.conf
 fi
-sed -i -E \
-    -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' \
-    /etc/pacman.conf
- if ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
+sed -i -E -e 's/^[[:space:]]*#[[:space:]]*(Color)/\1/' /etc/pacman.conf
+if ! grep -q -E "^[[:space:]]*Color" /etc/pacman.conf; then
     echo "Color" >> /etc/pacman.conf
 fi
+
 if [[ "\${INSTALL_STEAM}" == "true" ]] || [[ "\${ENABLE_MULTILIB}" == "true" ]]; then
     info "Ensuring Multilib repository is enabled in chroot pacman.conf..."
     sed -i -e '/^#[[:space:]]*\[multilib\]/s/^#//' -e '/^\[multilib\]/{n;s/^[[:space:]]*#[[:space:]]*Include/Include/}' /etc/pacman.conf
     check_status_chroot "Ensuring multilib is enabled in chroot pacman.conf"
 fi
 success "Pacman configuration verified."
-
-# --- HYPRLAND CONFIGURATION START ---
-if [[ "\${INSTALL_HYPRLAND}" == "true" ]]; then
-    info "--- Starting Hyprland Configuration for user \${USERNAME} ---"
-
-    local user_home="/home/\${USERNAME}"
-    local aur_builder_dir="\${user_home}/aur-builder"
-
-    # Create a directory for building AUR packages as the user
-    sudo -u "\${USERNAME}" mkdir -p "\${aur_builder_dir}"
-    check_status_chroot "Creating AUR build directory for user"
-
-    # --- Install yay ---
-    info "Installing AUR helper (yay) for user \${USERNAME}..."
-    sudo -u "\${USERNAME}" git clone --depth 1 https://aur.archlinux.org/yay.git "\${aur_builder_dir}/yay"
-    (
-        cd "\${aur_builder_dir}/yay"
-        sudo -u "\${USERNAME}" makepkg -si --noconfirm
-    )
-    check_status_chroot "Installing yay"
-    success "yay installed."
-
-    # --- Install AUR packages ---
-    info "Installing AUR packages with yay..."
-    sudo -u "\${USERNAME}" yay -S --noconfirm rofi-lbonn-wayland-git
-    check_status_chroot "Installing AUR package 'rofi-lbonn-wayland-git'"
-    success "AUR packages installed."
-
-    # --- Clone and apply dotfiles ---
-    info "Cloning AlvaroParker's config repository..."
-    local dotfiles_dir="\${user_home}/config-repo"
-    sudo -u "\${USERNAME}" git clone --depth 1 https://github.com/AlvaroParker/config.git "\${dotfiles_dir}"
-    check_status_chroot "Cloning dotfiles repository"
-
-    info "Copying configuration files..."
-    sudo -u "\${USERNAME}" cp -r "\${dotfiles_dir}/config/." "\${user_home}/.config/"
-    check_status_chroot "Copying .config files"
-
-    info "Copying local scripts..."
-    sudo -u "\${USERNAME}" mkdir -p "\${user_home}/.local/bin"
-    sudo -u "\${USERNAME}" cp -r "\${dotfiles_dir}/scripts/." "\${user_home}/.local/bin/"
-    check_status_chroot "Copying local scripts"
-    sudo -u "\${USERNAME}" chmod -R +x "\${user_home}/.local/bin/"
-    check_status_chroot "Making scripts executable"
-
-    info "Copying wallpapers..."
-    sudo -u "\${USERNAME}" mkdir -p "\${user_home}/Pictures/wallpapers"
-    sudo -u "\${USERNAME}" cp -r "\${dotfiles_dir}/wallpapers/." "\${user_home}/Pictures/wallpapers/"
-    check_status_chroot "Copying wallpapers"
-
-    success "Dotfiles have been applied."
-
-    # --- Cleanup ---
-    info "Cleaning up build and temporary files..."
-    rm -rf "\${aur_builder_dir}"
-    rm -rf "\${dotfiles_dir}"
-    success "Cleanup complete."
-    info "--- Hyprland Configuration Finished ---"
-fi
-# --- HYPRLAND CONFIGURATION END ---
 
 info "Enabling NetworkManager service..."
 systemctl enable NetworkManager.service
@@ -910,7 +888,7 @@ if [[ -n "\${ENABLE_DM}" ]]; then
     check_status_chroot "Enabling \${ENABLE_DM} service"
     success "\${ENABLE_DM} enabled."
 else
-    info "No Display Manager to enable (Server install or manual setup selected)."
+    info "No Display Manager to enable (Server/Hyprland install or manual setup selected)."
 fi
 
 if pacman -Qs openssh &>/dev/null; then
@@ -928,8 +906,8 @@ fi
 if pacman -Q bluez &>/dev/null; then
     info "bluez package found, enabling bluetooth service..."
     systemctl enable bluetooth.service
-    check_status_chroot "Enabling bluetooth service"
-    success "bluetooth enabled."
+    check_status_chroot "Enabling bluez service"
+    success "bluez enabled."
 fi
 if pacman -Q libvirt &>/dev/null; then
     info "libvirt package found, enabling libvirtd service..."
@@ -983,6 +961,13 @@ install_bootloader() {
 
 
 install_oh_my_zsh() {
+    # NEW: Skip this entirely if Hyprland profile is selected
+    if [[ "$SETUP_HYPRLAND" == "true" ]]; then
+        info "Hyprland profile selected, skipping Oh My Zsh installation."
+        info "AlvaroParker's script will handle Zsh configuration."
+        return
+    fi
+
     if ! arch-chroot /mnt pacman -Qs zsh &>/dev/null; then
         warn "zsh package not found in chroot. Skipping Oh My Zsh installation."
         return
@@ -1028,9 +1013,14 @@ final_steps() {
     info "It is strongly recommended to review the installed system before rebooting."
     info "You can use 'arch-chroot /mnt' to enter the installed system and check configurations (e.g., /etc/fstab, users, services)."
     warn "Ensure you remove the installation medium (USB/CD/ISO) before rebooting."
+    if [[ "$SETUP_HYPRLAND" == "true" ]]; then
+        warn "IMPORTANT FOR HYPRLAND USERS:"
+        warn "After rebooting, you will be in a TTY. Log in as '${USERNAME}'."
+        warn "You will be prompted to complete the installation. Follow the on-screen instructions."
+    fi
 
     info "Attempting final unmount of filesystems..."
-    sync
+    sync # Sync filesystem buffers before unmounting
     umount -R /mnt/boot &>/dev/null || umount -l /mnt/boot &>/dev/null || true
     umount -R /mnt &>/dev/null || umount -l /mnt &>/dev/null || true
     if [[ -v SWAP_PARTITION && -n "$SWAP_PARTITION" ]]; then
