@@ -829,9 +829,9 @@ if [ ! -f ~/.config-setup-complete ] && [ "\${XDG_VTNR}" -eq 1 ]; then
             git clone https://github.com/AlvaroParker/config.git
             if [ -d "config" ]; then
                 cd config
-                chmod +x install.sh
-                echo "Running the installer script (./install.sh)..."
-                ./install.sh
+                chmod +x install
+                echo "Running the installer script (./install)..."
+                ./install
                 echo "Installation script finished."
                 touch ~/.config-setup-complete
                 echo -e "\n\033[1;32mSetup is complete. Please reboot now to enter Hyprland.\033[0m"
@@ -845,7 +845,7 @@ if [ ! -f ~/.config-setup-complete ] && [ "\${XDG_VTNR}" -eq 1 ]; then
         *)
             echo "Skipping setup."
             touch ~/.config-setup-complete # Mark as done to avoid asking again
-            echo "You can run the setup manually later by cloning AlvaroParker's 'config' repo and running its install.sh."
+            echo "You can run the setup manually later by cloning AlvaroParker's 'config' repo and running its install script."
             ;;
     esac
     ) # End of subshell
