@@ -209,11 +209,10 @@ setup_fastfetch_config() {
     { "type": "shell", "key": " Shell" },
     { "type": "de", "key": " DE" },
     { "type": "cpu", "key": " CPU" },
-    { "type": "gpu", "key": "󰍛 GPU" },
-    { "type": "memory", "key": " RAM", "format": "{1} / {2}" },
-    { "type": "disk", "key": " Disk (/)", "format": "{1} / {2} ({4} used)", "folders": ["/"] },
+    { "type": "gpu", "key": " GPU" },
+    { "type": "memory", "key": " RAM", "format": "{1} / {2}" },
+    { "type": "disk", "key": " Disk (/)", "format": "{1} / {2}", "folders": ["/"] },
     "break",
-    "colors"
   ]
 }
 EOF
