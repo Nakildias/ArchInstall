@@ -3,6 +3,7 @@
 # Arch Linux Installation Script - Rewritten
 # Now supports Legacy BIOS!
 # By Nakildias
+# Fast version, asks for less user input thoughout the script
 
 # --- Configuration ---
 SCRIPT_VERSION="2.1-experimental" # Updated version
