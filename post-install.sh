@@ -6,9 +6,7 @@
 # This script uses the Oh My Zsh framework to configure Zsh.                     #
 # It will:                                                                       #
 #   - Install Zsh, Git, Curl, LSD, Fastfetch, FZF, and a Nerd Font.              #
-#   - Install Oh My Zsh and necessary plugins/themes (p10k, autosuggestions, etc.) #
-#   - **COMPLETELY OVERWRITE** your ~/.zshrc file with a new template where      #
-#     fastfetch is executed at the very top.                                     #
+#   - Install Oh My Zsh and necessary plugins/themes (p10k, autosuggestions, etc.#
 #================================================================================#
 
 # --- Color Definitions ---
@@ -238,7 +236,7 @@ change_shell() {
 # --- Script Execution ---
 main() {
     echo -e "${BLUE}=======================================================${NC}"
-    echo -e "${BLUE}  🚀 Arch Linux & Oh My Zsh Setup Script 🚀  ${NC}"
+    echo -e "${BLUE}            Arch Linux & Zsh Setup Script   ${NC}"
     echo -e "${BLUE}=======================================================${NC}"
     
     install_packages
@@ -248,7 +246,7 @@ main() {
     change_shell
 
     echo
-    success_msg "All tasks are complete! 🎉"
+    success_msg "All tasks are complete!"
     info_msg "Here are the next steps:"
     echo "  1. ${YELLOW}IMPORTANT: Your ~/.zshrc file has been replaced with your specified layout.${NC}"
     echo "  2. Open your terminal's settings and change the font to 'FiraCode Nerd Font'."
