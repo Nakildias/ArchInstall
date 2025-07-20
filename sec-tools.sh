@@ -81,7 +81,7 @@ OFFICIAL_PACKAGES=(
     dnsutils       # Includes dig, nslookup
     openbsd-netcat # The 'swiss army knife' for TCP/IP
     socat          # Advanced netcat alternative
-    iptables-nft   # Firewall management
+    iptables   # Firewall management
 
     # Web & Vulnerability
     nikto          # Web server scanner
