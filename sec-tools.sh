@@ -130,9 +130,8 @@ AUR_PACKAGES=(
     hashcat-utils           # Utilities for hashcat
     wfuzz                   # Web application fuzzer
     ffuf                    # Fast web fuzzer written in Go
-    bloodhound              # Active Directory trust relationship analysis
+#    bloodhound              # Active Directory trust relationship analysis (Doesn't work rn)
     impacket                # Python classes for working with network protocols
-    stegosuite              # Steganography tool
     volatility3-git         # Memory forensics framework
 )
 
@@ -300,17 +299,13 @@ Example: wfuzz -c -z file,wordlist.txt http://target.com/FUZZ
 Description: A fast web fuzzer written in Go.
 Example: ffuf -w wordlist.txt -u http://target.com/FUZZ
 
-[bloodhound]
+[bloodhound] Not installed because it fails to compile.
 Description: Visually displays Active Directory trust relationships in an AD environment.
 Example: bloodhound
 
 [impacket]
 Description: A collection of Python classes for working with network protocols.
 Example: impacket-psexec username@target.com
-
-[stegosuite]
-Description: A graphical steganography tool to hide information in image files.
-Example: stegosuite
 
 [volatility3-git]
 Description: An open-source memory forensics framework for incident response and malware analysis.
