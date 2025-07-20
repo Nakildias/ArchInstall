@@ -87,7 +87,6 @@ OFFICIAL_PACKAGES=(
     nikto          # Web server scanner
     sqlmap         # SQL injection detection and exploitation
     gobuster       # Directory/file & DNS busting tool
-    dirb           # Web content scanner
     wpscan         # WordPress vulnerability scanner
 
     # Password Cracking
@@ -127,6 +126,7 @@ print_message "$BLUE" "Installing tools from the Arch User Repository (AUR)..."
 AUR_PACKAGES=(
     metasploit              # The world's most used penetration testing framework
     burpsuite               # Web vulnerability scanner and proxy (community edition)
+    dirb                    # Web content scanner
     hashcat-utils           # Utilities for hashcat
     wfuzz                   # Web application fuzzer
     ffuf                    # Fast web fuzzer written in Go
@@ -200,10 +200,6 @@ Example: sqlmap -u "http://testsite.com/page.php?id=1"
 [gobuster]
 Description: A tool used to brute-force URIs (directories and files), DNS subdomains, and virtual host names.
 Example: gobuster dir -u http://target.com -w /usr/share/wordlists/dirb/common.txt
-
-[dirb]
-Description: A web content scanner that looks for existing (and/or hidden) web objects.
-Example: dirb http://target.com
 
 [wpscan]
 Description: A black box WordPress security scanner.
@@ -287,6 +283,10 @@ Example: msfconsole
 [burpsuite]
 Description: An integrated platform for performing security testing of web applications.
 Example: burpsuite
+
+[dirb]
+Description: A web content scanner that looks for existing (and/or hidden) web objects.
+Example: dirb http://target.com
 
 [hashcat-utils]
 Description: Small utilities that are useful in advanced password cracking.
