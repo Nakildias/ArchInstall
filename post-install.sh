@@ -1,16 +1,14 @@
 #!/bin/bash
 
 #================================================================================#
-#                  Arch Linux Zsh & Powerlevel10k Setup Script (v5)              #
+#           Arch Linux Zsh & Oh My Zsh Setup Script (v6)                         #
 #================================================================================#
-# This script automates the installation and configuration of:                   #
-#   - Zsh (Z Shell)                                                              #
-#   - Yay (AUR Helper)                                                           #
-#   - Powerlevel10k Theme                                                        #
-#   - Essential Zsh plugins (autosuggestions, syntax-highlighting, fzf-tab)      #
-#   - LSD (modern 'ls' replacement) with aliases                                 #
-#   - Fastfetch with a custom configuration                                      #
-#   - FiraCode Nerd Font for proper icon display                                 #
+# This script now uses the Oh My Zsh framework to configure Zsh.                 #
+# It will:                                                                       #
+#   - Install Zsh, Git, Curl, LSD, Fastfetch, FZF, and a Nerd Font.              #
+#   - Install Oh My Zsh and necessary plugins/themes (p10k, autosuggestions, etc.) #
+#   - **COMPLETELY OVERWRITE** your ~/.zshrc file with a new template.           #
+#   - Set up a custom Fastfetch configuration.                                   #
 #================================================================================#
 
 # --- Color Definitions ---
@@ -24,15 +22,12 @@ NC='\033[0m' # No Color
 info_msg() {
     echo -e "${BLUE}INFO: $1${NC}"
 }
-
 success_msg() {
     echo -e "${GREEN}SUCCESS: $1${NC}"
 }
-
 warn_msg() {
     echo -e "${YELLOW}WARNING: $1${NC}"
 }
-
 error_msg() {
     echo -e "${RED}ERROR: $1${NC}"
 }
@@ -52,22 +47,17 @@ ask_user() {
 }
 
 # --- Pre-run Checks ---
-# Ensure script is not run as root
 if [[ $EUID -eq 0 ]]; then
-   error_msg "This script must not be run as root. Run it as a normal user with sudo privileges."
+   error_msg "This script must not be run as root."
    exit 1
 fi
 
-# Set target user and home directory
 TARGET_USER=$USER
 USER_HOME=$HOME
 info_msg "Running setup for user: ${TARGET_USER} (${USER_HOME})"
-
-# Refresh sudo timestamp
-info_msg "Requesting sudo privileges for package installation..."
 sudo -v
 if [[ $? -ne 0 ]]; then
-    error_msg "Failed to acquire sudo privileges. Please run the script again."
+    error_msg "Failed to acquire sudo privileges."
     exit 1
 fi
 
@@ -83,84 +73,116 @@ install_packages() {
         return
     fi
 
+    # Zsh plugins are now handled by Oh My Zsh, so they are removed from pacman/yay.
     local pacman_pkgs=(
-        "zsh" "git" "base-devel" "lsd" "fastfetch"
-        "zsh-autosuggestions" "zsh-syntax-highlighting" "fzf"
-        "ttf-firacode-nerd"
+        "zsh" "git" "curl" "lsd" "fastfetch" "fzf" "ttf-firacode-nerd"
     )
 
-    info_msg "Updating system and installing packages with pacman..."
+    info_msg "Installing required packages with pacman..."
     sudo pacman -Syu --needed --noconfirm "${pacman_pkgs[@]}"
     
-    info_msg "Rebuilding font cache to make new fonts available..."
+    info_msg "Rebuilding font cache..."
     sudo fc-cache -fv
     success_msg "Font cache rebuilt."
-    info_msg "A Nerd Font (FiraCode) has been installed. ${YELLOW}Remember to set it as the font in your terminal's settings!${NC}"
-
-    # Install yay (AUR helper)
-    if ! command -v yay &> /dev/null; then
-        info_msg "'yay' not found. It will be installed from the AUR."
-        if ask_user "Do you want to install 'yay'?"; then
-            (
-                cd "$USER_HOME" && \
-                git clone https://aur.archlinux.org/yay.git && \
-                cd yay && \
-                makepkg -si --noconfirm && \
-                cd .. && \
-                rm -rf yay
-            )
-            success_msg "'yay' has been installed."
-        else
-            warn_msg "Skipping 'yay' installation. AUR packages will not be installed."
-            return
-        fi
-    else
-        info_msg "'yay' is already installed."
-    fi
-
-    # AUR packages
-    if command -v yay &> /dev/null; then
-        # Corrected AUR package name for fzf-tab
-        local aur_pkgs=("zsh-theme-powerlevel10k-git" "fzf-tab-git")
-        info_msg "Installing AUR packages with yay..."
-        yay -S --needed --noconfirm "${aur_pkgs[@]}"
-        success_msg "AUR packages installed."
-    fi
+    info_msg "A Nerd Font (FiraCode) has been installed. ${YELLOW}Remember to set it in your terminal's settings!${NC}"
 }
 
 ##
-## 2. Zsh Configuration
+## 2. Install Oh My Zsh and Plugins
 ##
-configure_zsh() {
-    info_msg "Starting Zsh configuration..."
-    if ! ask_user "Do you want to configure .zshrc?"; then
-        warn_msg "Skipping .zshrc configuration."
+install_omz_and_plugins() {
+    info_msg "Installing Oh My Zsh and plugins..."
+    if ! ask_user "Do you want to install Oh My Zsh and its plugins?"; then
+        warn_msg "Skipping Oh My Zsh installation."
+        return
+    fi
+    
+    local omz_dir="$USER_HOME/.oh-my-zsh"
+    local omz_custom="$omz_dir/custom"
+
+    # Install Oh My Zsh
+    if [ ! -d "$omz_dir" ]; then
+        info_msg "Installing Oh My Zsh..."
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        success_msg "Oh My Zsh installed."
+    else
+        info_msg "Oh My Zsh is already installed."
+    fi
+
+    # Clone Powerlevel10k theme
+    if [ ! -d "$omz_custom/themes/powerlevel10k" ]; then
+        info_msg "Cloning Powerlevel10k theme..."
+        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$omz_custom/themes/powerlevel10k"
+    fi
+
+    # Clone plugins
+    info_msg "Cloning custom Zsh plugins..."
+    [[ ! -d "$omz_custom/plugins/zsh-autosuggestions" ]] && git clone https://github.com/zsh-users/zsh-autosuggestions "$omz_custom/plugins/zsh-autosuggestions"
+    [[ ! -d "$omz_custom/plugins/zsh-syntax-highlighting" ]] && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$omz_custom/plugins/zsh-syntax-highlighting"
+    [[ ! -d "$omz_custom/plugins/fzf-tab" ]] && git clone https://github.com/Aloxaf/fzf-tab "$omz_custom/plugins/fzf-tab"
+    
+    success_msg "Oh My Zsh and plugins are set up."
+}
+
+##
+## 3. Create .zshrc file
+##
+create_zshrc() {
+    info_msg "Creating new .zshrc file..."
+    local zshrc_file="$USER_HOME/.zshrc"
+
+    warn_msg "This action will COMPLETELY OVERWRITE your existing ~/.zshrc file."
+    if ! ask_user "Are you sure you want to proceed?"; then
+        warn_msg "Skipping .zshrc creation."
         return
     fi
 
-    local zshrc_file="$USER_HOME/.zshrc"
-    touch "$zshrc_file"
+    # Create the new .zshrc by writing a heredoc to the file.
+    cat > "$zshrc_file" <<'EOF'
+# ========================================================================
+# This .zshrc file was generated by the Arch Linux Setup Script.
+# It is configured to use Oh My Zsh and Powerlevel10k.
+# ========================================================================
 
-    local zsh_config_block
-    zsh_config_block=$(cat <<'EOF'
-
-# ===============================================================
-# START: Added by Arch Linux Setup Script
-# ===============================================================
-
-# Enable Powerlevel10k theme.
-# This must be sourced before calling compinit.
-source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
-
-# Source Zsh plugins.
-source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-# Corrected path for fzf-tab-git
-[[ -f /usr/share/zsh/plugins/fzf-tab/fzf-tab.zsh ]] && source /usr/share/zsh/plugins/fzf-tab/fzf-tab.zsh
+# Enable Powerlevel10k instant prompt. Should be first.
+# This wizard will generate this file on first run: ~/.cache/p10k-instant-prompt-${(%):-%n}.zsh
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
 
 # -------------------------------------------------
-# ALIASES FOR LSD (Modern ls replacement)
+# OH MY ZSH CONFIGURATION
 # -------------------------------------------------
+
+# Path to your Oh My Zsh installation.
+export ZSH="$HOME/.oh-my-zsh"
+
+# Set name of the theme to load --- Powerlevel10k
+# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
+ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# List of plugins that Oh My Zsh will load.
+# (this is not a complete list of available plugins)
+# See https://github.com/ohmyzsh/ohmyzsh/wiki/Plugins
+plugins=(
+  git
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+  fzf-tab
+)
+
+# Source the main Oh My Zsh script to load all settings, plugins, and themes.
+source $ZSH/oh-my-zsh.sh
+
+# -------------------------------------------------
+# ALIASES & CUSTOM SETTINGS
+# -------------------------------------------------
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+# This file is created by the p10k configuration wizard.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Aliases for LSD (a modern ls replacement).
 alias ls='lsd'
 alias l='lsd -l'
 alias la='lsd -a'
@@ -168,27 +190,17 @@ alias lla='lsd -la'
 alias lt='lsd --tree'
 
 # Run fastfetch on interactive shell startup.
-# This should be at the very end of the file.
+# Placed at the end to not slow down shell initialization.
 if [[ -o interactive ]]; then
   fastfetch -c ~/.config/fastfetch/config.jsonc
 fi
-
-# ===============================================================
-# END: Added by Arch Linux Setup Script
-# ===============================================================
 EOF
-)
 
-    if ! grep -qF "# START: Added by Arch Linux Setup Script" "$zshrc_file"; then
-        echo "$zsh_config_block" >> "$zshrc_file"
-        success_msg "Appended new configuration block to .zshrc."
-    else
-        warn_msg "Setup script configuration block already found in .zshrc. Skipping."
-    fi
+    success_msg "New .zshrc file has been created at $zshrc_file."
 }
 
 ##
-## 3. Fastfetch Configuration
+## The functions below are unchanged from the previous version.
 ##
 setup_fastfetch_config() {
     info_msg "Setting up Fastfetch configuration..."
@@ -196,134 +208,71 @@ setup_fastfetch_config() {
     local config_file="$config_dir/config.jsonc"
 
     if [[ -f "$config_file" ]]; then
-        if ! ask_user "Fastfetch config already exists. Do you want to overwrite it with the new version?"; then
+        if ! ask_user "Fastfetch config already exists. Do you want to overwrite it?"; then
             warn_msg "Skipping Fastfetch configuration."
             return
         fi
     fi
 
     mkdir -p "$config_dir"
-
-    # Corrected Fastfetch config with compatible format strings
     cat > "$config_file" <<'EOF'
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.jsonc",
-  "logo": {
-    "type": "small",
-    "padding": {
-      "top": 2,
-      "right": 4
-    },
-    "color": {
-      "1": "cyan",
-      "2": "blue"
-    }
-  },
-  "defaults": {
-    "module": {
-      "keyColor": "purple",
-      "separator": "  "
-    }
-  },
+  "logo": { "type": "small", "padding": { "top": 2, "right": 4 }, "color": { "1": "cyan", "2": "blue" } },
+  "defaults": { "module": { "keyColor": "purple", "separator": "  " } },
   "modules": [
-    {
-      "type": "break",
-      "string": " "
-    },
-    {
-      "type": "os",
-      "key": " OS"
-    },
-    {
-      "type": "uptime",
-      "key": " Uptime"
-    },
-    {
-      "type": "shell",
-      "key": " Shell"
-    },
-    {
-      "type": "de",
-      "key": " DE"
-    },
-    {
-      "type": "cpu",
-      "key": " CPU"
-    },
-    {
-      "type": "gpu",
-      "key": "󰍛 GPU"
-    },
-    {
-      "type": "memory",
-      "key": " RAM",
-      "format": "{1} / {2}"
-    },
-    {
-      "type": "disk",
-      "key": " Disk (/)",
-      "format": "{1} / {2} ({4} used)",
-      "folders": [
-        "/"
-      ]
-    },
+    { "type": "break", "string": " " },
+    { "type": "os", "key": " OS" },
+    { "type": "uptime", "key": " Uptime" },
+    { "type": "shell", "key": " Shell" },
+    { "type": "de", "key": " DE" },
+    { "type": "cpu", "key": " CPU" },
+    { "type": "gpu", "key": "󰍛 GPU" },
+    { "type": "memory", "key": " RAM", "format": "{1} / {2}" },
+    { "type": "disk", "key": " Disk (/)", "format": "{1} / {2} ({4} used)", "folders": ["/"] },
     "break",
     "colors"
   ]
 }
 EOF
-
     success_msg "Created a new Fastfetch configuration at $config_file"
 }
 
-##
-## 4. Change Default Shell
-##
 change_shell() {
     if [[ "$SHELL" == *"zsh"* ]]; then
         info_msg "Your default shell is already Zsh."
         return
     fi
-    
     info_msg "Changing default shell to Zsh..."
     if ask_user "Do you want to set Zsh as your default shell?"; then
-        local zsh_path
-        zsh_path=$(which zsh)
-        if [[ -z "$zsh_path" ]]; then
-            error_msg "Could not find zsh executable."
-            return
-        fi
-        
+        local zsh_path=$(which zsh)
+        if [[ -z "$zsh_path" ]]; then error_msg "Could not find zsh executable."; return; fi
         sudo chsh -s "$zsh_path" "$TARGET_USER"
-        if [[ $? -eq 0 ]]; then
-            success_msg "Default shell changed to Zsh."
-        else
-            error_msg "Failed to change the default shell."
-        fi
+        [[ $? -eq 0 ]] && success_msg "Default shell changed to Zsh." || error_msg "Failed to change shell."
     else
         warn_msg "Skipping shell change."
     fi
 }
 
-
 # --- Script Execution ---
 main() {
-    echo -e "${BLUE}====================================================${NC}"
-    echo -e "${BLUE}  🚀 Welcome to the Arch Linux Zsh Setup Script 🚀  ${NC}"
-    echo -e "${BLUE}====================================================${NC}"
+    echo -e "${BLUE}=======================================================${NC}"
+    echo -e "${BLUE}  🚀 Arch Linux & Oh My Zsh Setup Script 🚀  ${NC}"
+    echo -e "${BLUE}=======================================================${NC}"
     
     install_packages
-    configure_zsh
+    install_omz_and_plugins
+    create_zshrc
     setup_fastfetch_config
     change_shell
 
     echo
     success_msg "All tasks are complete! 🎉"
     info_msg "Here are the next steps:"
-    echo "  1. ${YELLOW}IMPORTANT: Open your terminal's settings and change the font to 'FiraCode Nerd Font'.${NC}"
-    echo "  2. Log out and log back in to use Zsh as your default shell."
-    echo "  3. When you first start Zsh, Powerlevel10k will run its configuration wizard."
-    echo "     If it doesn't, you can start it manually by running: ${YELLOW}p10k configure${NC}"
+    echo "  1. ${YELLOW}IMPORTANT: Your ~/.zshrc file has been replaced.${NC}"
+    echo "  2. Open your terminal's settings and change the font to 'FiraCode Nerd Font'."
+    echo "  3. Log out and log back in to start your new Zsh environment."
+    echo "  4. On first launch, run ${YELLOW}p10k configure${NC} to set up your Powerlevel10k prompt."
     echo
 }
 
