@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #================================================================================#
-#                  Arch Linux Zsh & Powerlevel10k Setup Script (v3)              #
+#                  Arch Linux Zsh & Powerlevel10k Setup Script (v4)              #
 #================================================================================#
 # This script automates the installation and configuration of:                   #
 #   - Zsh (Z Shell)                                                              #
@@ -83,9 +83,10 @@ install_packages() {
         return
     fi
 
+    # fzf-tab moved to AUR packages
     local pacman_pkgs=(
         "zsh" "git" "base-devel" "lsd" "fastfetch"
-        "zsh-autosuggestions" "zsh-syntax-highlighting" "fzf" "fzf-tab"
+        "zsh-autosuggestions" "zsh-syntax-highlighting" "fzf"
         "ttf-firacode-nerd"
     )
 
@@ -120,7 +121,8 @@ install_packages() {
 
     # AUR packages
     if command -v yay &> /dev/null; then
-        local aur_pkgs=("zsh-theme-powerlevel10k-git")
+        # fzf-tab is an AUR package
+        local aur_pkgs=("zsh-theme-powerlevel10k-git" "fzf-tab")
         info_msg "Installing AUR packages with yay..."
         yay -S --needed --noconfirm "${aur_pkgs[@]}"
         success_msg "AUR packages installed."
@@ -152,9 +154,10 @@ configure_zsh() {
 source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
 
 # Source Zsh plugins.
+# Note: fzf-tab is installed from AUR, path might differ if installed manually.
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source /usr/share/fzf/fzf-tab/fzf-tab.zsh
+[[ -f /usr/share/fzf/fzf-tab/fzf-tab.zsh ]] && source /usr/share/fzf/fzf-tab/fzf-tab.zsh
 
 # -------------------------------------------------
 # ALIASES FOR LSD (Modern ls replacement)
@@ -202,18 +205,20 @@ setup_fastfetch_config() {
 
     mkdir -p "$config_dir"
 
-    # Create the config file based on the user's template, with adaptations.
+    # Corrected Fastfetch config based on user feedback and template
     cat > "$config_file" <<'EOF'
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.jsonc",
   "logo": {
-    "source": "arch_small",
+    "type": "small",
     "padding": {
       "top": 2,
       "right": 4
     },
-    "color1": "cyan",
-    "color2": "blue"
+    "color": {
+      "1": "cyan",
+      "2": "blue"
+    }
   },
   "defaults": {
     "module": {
