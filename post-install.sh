@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #================================================================================#
-#                  Arch Linux Zsh & Powerlevel10k Setup Script (v2)              #
+#                  Arch Linux Zsh & Powerlevel10k Setup Script (v3)              #
 #================================================================================#
 # This script automates the installation and configuration of:                   #
 #   - Zsh (Z Shell)                                                              #
@@ -83,7 +83,6 @@ install_packages() {
         return
     fi
 
-    # Pacman packages, now including a Nerd Font and lsd
     local pacman_pkgs=(
         "zsh" "git" "base-devel" "lsd" "fastfetch"
         "zsh-autosuggestions" "zsh-syntax-highlighting" "fzf" "fzf-tab"
@@ -92,9 +91,11 @@ install_packages() {
 
     info_msg "Updating system and installing packages with pacman..."
     sudo pacman -Syu --needed --noconfirm "${pacman_pkgs[@]}"
-    success_msg "Pacman packages installed."
+    
+    info_msg "Rebuilding font cache to make new fonts available..."
+    sudo fc-cache -fv
+    success_msg "Font cache rebuilt."
     info_msg "A Nerd Font (FiraCode) has been installed. ${YELLOW}Remember to set it as the font in your terminal's settings!${NC}"
-
 
     # Install yay (AUR helper)
     if ! command -v yay &> /dev/null; then
@@ -139,7 +140,6 @@ configure_zsh() {
     local zshrc_file="$USER_HOME/.zshrc"
     touch "$zshrc_file"
 
-    # Create a single, correctly ordered block of Zsh configuration
     local zsh_config_block
     zsh_config_block=$(cat <<'EOF'
 
@@ -177,7 +177,6 @@ fi
 EOF
 )
 
-    # Append the entire block to .zshrc if it's not already there.
     if ! grep -qF "# START: Added by Arch Linux Setup Script" "$zshrc_file"; then
         echo "$zsh_config_block" >> "$zshrc_file"
         success_msg "Appended new configuration block to .zshrc."
@@ -195,7 +194,7 @@ setup_fastfetch_config() {
     local config_file="$config_dir/config.jsonc"
 
     if [[ -f "$config_file" ]]; then
-        if ! ask_user "Fastfetch config already exists. Do you want to overwrite it?"; then
+        if ! ask_user "Fastfetch config already exists. Do you want to overwrite it with the new version?"; then
             warn_msg "Skipping Fastfetch configuration."
             return
         fi
@@ -203,34 +202,72 @@ setup_fastfetch_config() {
 
     mkdir -p "$config_dir"
 
-    # Create the config file with a heredoc. The logo section is simplified for compatibility.
+    # Create the config file based on the user's template, with adaptations.
     cat > "$config_file" <<'EOF'
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.jsonc",
   "logo": {
     "source": "arch_small",
+    "padding": {
+      "top": 2,
+      "right": 4
+    },
     "color1": "cyan",
     "color2": "blue"
   },
-  "display": {
-    "separator": "  ->  ",
-    "keyWidth": 10
+  "defaults": {
+    "module": {
+      "keyColor": "purple",
+      "separator": "  "
+    }
   },
   "modules": [
-    "title",
-    "separator",
-    { "type": "os", "key": "OS" },
-    { "type": "host", "key": "Host" },
-    { "type": "kernel", "key": "Kernel" },
-    { "type": "uptime", "key": "Uptime" },
-    { "type": "packages", "key": "Packages" },
-    { "type": "shell", "key": "Shell" },
-    { "type": "de", "key": "DE/WM" },
-    { "type": "terminal", "key": "Terminal" },
-    "cpu",
-    "gpu",
-    "memory",
-    { "type": "disk", "key": "Disk", "folders": ["/", "/home"] },
+    {
+      "type": "break",
+      "string": " "
+    },
+    {
+      "type": "os",
+      "key": " OS",
+      "format": "{/os/name}"
+    },
+    {
+      "type": "uptime",
+      "key": " Uptime"
+    },
+    {
+      "type": "shell",
+      "key": " Shell",
+      "format": "{1} {2}"
+    },
+    {
+      "type": "de",
+      "key": " DE",
+      "format": "{2}"
+    },
+    {
+      "type": "cpu",
+      "key": " CPU",
+      "format": "{2} ({6}) @ {4}"
+    },
+    {
+      "type": "gpu",
+      "key": "󰍛 GPU",
+      "format": "{2}"
+    },
+    {
+      "type": "memory",
+      "key": " RAM",
+      "format": "{/memory/used.v} / {/memory/total.v}"
+    },
+    {
+      "type": "disk",
+      "key": " Disk (/)",
+      "format": "{1} / {2} ({3} used)",
+      "folders": [
+        "/"
+      ]
+    },
     "break",
     "colors"
   ]
