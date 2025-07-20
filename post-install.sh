@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #================================================================================#
-#                  Arch Linux Zsh & Powerlevel10k Setup Script                   #
+#                  Arch Linux Zsh & Powerlevel10k Setup Script (v2)              #
 #================================================================================#
 # This script automates the installation and configuration of:                   #
 #   - Zsh (Z Shell)                                                              #
@@ -10,6 +10,7 @@
 #   - Essential Zsh plugins (autosuggestions, syntax-highlighting, fzf-tab)      #
 #   - LSD (modern 'ls' replacement) with aliases                                 #
 #   - Fastfetch with a custom configuration                                      #
+#   - FiraCode Nerd Font for proper icon display                                 #
 #================================================================================#
 
 # --- Color Definitions ---
@@ -82,15 +83,18 @@ install_packages() {
         return
     fi
 
-    # Pacman packages
+    # Pacman packages, now including a Nerd Font and lsd
     local pacman_pkgs=(
         "zsh" "git" "base-devel" "lsd" "fastfetch"
         "zsh-autosuggestions" "zsh-syntax-highlighting" "fzf" "fzf-tab"
+        "ttf-firacode-nerd"
     )
 
     info_msg "Updating system and installing packages with pacman..."
     sudo pacman -Syu --needed --noconfirm "${pacman_pkgs[@]}"
     success_msg "Pacman packages installed."
+    info_msg "A Nerd Font (FiraCode) has been installed. ${YELLOW}Remember to set it as the font in your terminal's settings!${NC}"
+
 
     # Install yay (AUR helper)
     if ! command -v yay &> /dev/null; then
@@ -133,31 +137,24 @@ configure_zsh() {
     fi
 
     local zshrc_file="$USER_HOME/.zshrc"
-    touch "$zshrc_file" # Create if it doesn't exist
+    touch "$zshrc_file"
 
-    # Source Powerlevel10k
-    local p10k_source='source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme'
-    if ! grep -qF "$p10k_source" "$zshrc_file"; then
-        echo -e "\n# Enable Powerlevel10k theme\n$p10k_source" >> "$zshrc_file"
-        success_msg "Added Powerlevel10k to .zshrc."
-    fi
+    # Create a single, correctly ordered block of Zsh configuration
+    local zsh_config_block
+    zsh_config_block=$(cat <<'EOF'
 
-    # Source Zsh plugins
-    local plugins_source=$(cat <<'EOF'
+# ===============================================================
+# START: Added by Arch Linux Setup Script
+# ===============================================================
 
-# Source Zsh plugins
+# Enable Powerlevel10k theme.
+# This must be sourced before calling compinit.
+source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+
+# Source Zsh plugins.
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 source /usr/share/fzf/fzf-tab/fzf-tab.zsh
-EOF
-)
-    if ! grep -qF "zsh-autosuggestions.zsh" "$zshrc_file"; then
-        echo "$plugins_source" >> "$zshrc_file"
-        success_msg "Added Zsh plugins to .zshrc."
-    fi
-
-    # Add LSD aliases
-    local lsd_aliases=$(cat <<'EOF'
 
 # -------------------------------------------------
 # ALIASES FOR LSD (Modern ls replacement)
@@ -167,25 +164,25 @@ alias l='lsd -l'
 alias la='lsd -a'
 alias lla='lsd -la'
 alias lt='lsd --tree'
-EOF
-)
-    if ! grep -qF "alias ls='lsd'" "$zshrc_file"; then
-        echo "$lsd_aliases" >> "$zshrc_file"
-        success_msg "Added LSD aliases to .zshrc."
-    fi
 
-    # Add fastfetch on startup
-    local fastfetch_block=$(cat <<'EOF'
-
-# Run fastfetch on interactive shell startup
+# Run fastfetch on interactive shell startup.
+# This should be at the very end of the file.
 if [[ -o interactive ]]; then
   fastfetch -c ~/.config/fastfetch/config.jsonc
 fi
+
+# ===============================================================
+# END: Added by Arch Linux Setup Script
+# ===============================================================
 EOF
 )
-    if ! grep -qF "fastfetch -c" "$zshrc_file"; then
-        echo "$fastfetch_block" >> "$zshrc_file"
-        success_msg "Added fastfetch startup command to .zshrc."
+
+    # Append the entire block to .zshrc if it's not already there.
+    if ! grep -qF "# START: Added by Arch Linux Setup Script" "$zshrc_file"; then
+        echo "$zsh_config_block" >> "$zshrc_file"
+        success_msg "Appended new configuration block to .zshrc."
+    else
+        warn_msg "Setup script configuration block already found in .zshrc. Skipping."
     fi
 }
 
@@ -205,13 +202,12 @@ setup_fastfetch_config() {
     fi
 
     mkdir -p "$config_dir"
-    
-    # Use a heredoc to create the config file
+
+    # Create the config file with a heredoc. The logo section is simplified for compatibility.
     cat > "$config_file" <<'EOF'
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.jsonc",
   "logo": {
-    "type": "kitty-direct",
     "source": "arch_small",
     "color1": "cyan",
     "color2": "blue"
@@ -223,46 +219,18 @@ setup_fastfetch_config() {
   "modules": [
     "title",
     "separator",
-    {
-      "type": "os",
-      "key": "OS"
-    },
-    {
-      "type": "host",
-      "key": "Host"
-    },
-    {
-      "type": "kernel",
-      "key": "Kernel"
-    },
-    {
-      "type": "uptime",
-      "key": "Uptime"
-    },
-    {
-      "type": "packages",
-      "key": "Packages"
-    },
-    {
-      "type": "shell",
-      "key": "Shell"
-    },
-    {
-      "type": "de",
-      "key": "DE/WM"
-    },
-    {
-      "type": "terminal",
-      "key": "Terminal"
-    },
+    { "type": "os", "key": "OS" },
+    { "type": "host", "key": "Host" },
+    { "type": "kernel", "key": "Kernel" },
+    { "type": "uptime", "key": "Uptime" },
+    { "type": "packages", "key": "Packages" },
+    { "type": "shell", "key": "Shell" },
+    { "type": "de", "key": "DE/WM" },
+    { "type": "terminal", "key": "Terminal" },
     "cpu",
     "gpu",
     "memory",
-    {
-      "type": "disk",
-      "key": "Disk",
-      "folders": ["/", "/home"]
-    },
+    { "type": "disk", "key": "Disk", "folders": ["/", "/home"] },
     "break",
     "colors"
   ]
@@ -305,7 +273,7 @@ change_shell() {
 # --- Script Execution ---
 main() {
     echo -e "${BLUE}====================================================${NC}"
-    echo -e "${BLUE}     Welcome to the Arch Linux Zsh Setup Script   ${NC}"
+    echo -e "${BLUE}  🚀 Welcome to the Arch Linux Zsh Setup Script 🚀  ${NC}"
     echo -e "${BLUE}====================================================${NC}"
     
     install_packages
@@ -314,10 +282,11 @@ main() {
     change_shell
 
     echo
-    success_msg "All tasks are complete!"
+    success_msg "All tasks are complete! 🎉"
     info_msg "Here are the next steps:"
-    echo "  1. Log out and log back in to use Zsh as your default shell."
-    echo "  2. When you first start Zsh, Powerlevel10k will run its configuration wizard."
+    echo "  1. ${YELLOW}IMPORTANT: Open your terminal's settings and change the font to 'FiraCode Nerd Font'.${NC}"
+    echo "  2. Log out and log back in to use Zsh as your default shell."
+    echo "  3. When you first start Zsh, Powerlevel10k will run its configuration wizard."
     echo "     If it doesn't, you can start it manually by running: ${YELLOW}p10k configure${NC}"
     echo
 }
