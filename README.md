@@ -61,9 +61,7 @@ This script is designed to simplify the Arch Linux installation process. Please 
     ```
     Remove the Arch Linux USB drive after shutting down or during the reboot process.
 
-## 🔧 Step 4: Post-Installation Script (Optional & Unfinished)
-
-This script includes an optional post-installation script to further configure your new Arch Linux system. Please note that this part is currently **unfinished**.
+## 🔧 Step 4: Post-Installation Script (Makes your shell better looking and nicer to user and also installs yay for you.)
 
 1.  **Clone the Repository (if not already cloned or if you removed it):**
     After rebooting into your new Arch Linux system and logging in, open a terminal and run:
@@ -74,7 +72,7 @@ This script includes an optional post-installation script to further configure y
     ```bash
     cd ArchInstall
     ```
-3.  **(OPTIONAL& UNFINISHED) Execute the Post-Installation Script:**
+3.  **Execute the Post-Installation Script:**
     ```bash
     bash post-install.sh
     ```
