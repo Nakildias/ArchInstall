@@ -977,8 +977,8 @@ final_steps() {
 
     echo "Copying post-install.sh and other scripts to the Arch Installation ~/Scripts folder."
     mkdir /mnt/home/${USERNAME}/Scripts
-    cp ./post-install.sh /mnt/home/${USERNAME}/Scripts/
-    cp ./sec-tools.sh /mnt/home/${USERNAME}/Scripts/
+    chmod +x ./Scripts/*
+    cp ./Scripts/* /mnt/home/${USERNAME}/Scripts/
     echo "Done copying scripts over to ~/Scripts folder."
 
     success "Arch Linux installation process finished!"
