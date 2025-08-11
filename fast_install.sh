@@ -328,7 +328,7 @@ select_desktop_environment() {
         "Server (No GUI)"
         "KDE Plasma"
         "GNOME"
-        "XFCE"
+        ""
         "LXQt"
         "MATE"
         "KDE Plasma (NVIDIA, Nakildias Profile)"
@@ -642,7 +642,7 @@ install_base_system() {
             ;;
         3) # XFCE
             info "Selecting packages for XFCE."
-            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" "openssh" )
+            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "gvfs" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" "openssh" )
             ENABLE_DM="lightdm"
             ;;
         4) # LXQt
