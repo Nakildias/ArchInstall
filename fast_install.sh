@@ -632,32 +632,32 @@ install_base_system() {
             ;;
         1) # KDE Plasma
             info "Selecting packages for KDE Plasma."
-            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "plasma-pa" "sddm-kcm" "openssh" )
+            de_pkgs+=( "plasma-desktop" "sddm" "konsole" "pipewire-alsa" "pipewire-pulse" "alsa-utils" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "plasma-pa" "sddm-kcm" "openssh" )
             ENABLE_DM="sddm"
             ;;
         2) # GNOME
             info "Selecting packages for GNOME."
-            de_pkgs+=( "gnome" "gdm" "gnome-terminal" "nautilus" "gnome-text-editor" "gnome-control-center" "gnome-software" "eog" "file-roller" "flatpak" "firefox" "gnome-tweaks" "openssh" )
+            de_pkgs+=( "gnome" "gdm" "gnome-terminal" "pipewire-alsa" "pipewire-pulse" "alsa-utils" "nautilus" "gnome-text-editor" "gnome-control-center" "gnome-software" "eog" "file-roller" "flatpak" "firefox" "gnome-tweaks" "openssh" )
             ENABLE_DM="gdm"
             ;;
         3) # XFCE
             info "Selecting packages for XFCE."
-            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "gvfs" "gvfs-smb" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" "openssh" )
+            de_pkgs+=( "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter" "xfce4-terminal" "pipewire-alsa" "pipewire-pulse" "alsa-utils" "gvfs" "gvfs-smb" "thunar" "mousepad" "ristretto" "file-roller" "flatpak" "firefox" "network-manager-applet" "openssh" )
             ENABLE_DM="lightdm"
             ;;
         4) # LXQt
              info "Selecting packages for LXQt."
-             de_pkgs+=( "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" "openssh" )
+             de_pkgs+=( "lxqt" "sddm" "qterminal" "pipewire-alsa" "pipewire-pulse" "alsa-utils" "pcmanfm-qt" "featherpad" "lximage-qt" "ark" "flatpak" "firefox" "network-manager-applet" "openssh" )
              ENABLE_DM="sddm"
              ;;
         5) # MATE
              info "Selecting packages for MATE."
-             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
+             de_pkgs+=( "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter" "mate-terminal" "pipewire-alsa" "pipewire-pulse" "alsa-utils" "caja" "pluma" "eom" "engrampa" "flatpak" "firefox" "network-manager-applet" "openssh" )
              ENABLE_DM="lightdm"
              ;;
         6) # KDE Plasma (Nvidia, Nakildias Profile)
              info "Selecting packages for MATE."
-             de_pkgs+=( "plasma-desktop" "sddm" "konsole" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "nvidia" "plasma-pa" "bluedevil" "obs-studio" "spotify-launcher" "sddm-kcm" "kdenlive" "kdeconnect" "kwalletmanager" "kfind" "isoimagewriter" "kmail" "calindori" "plasma-browser-integration" "ntfs-3g" "cups" "system-config-printer" "print-manager" "krdp" "deluge-gtk" "thefuck" "git-lfs" "virt-manager" "openssh" "nmap" "traceroute" "qemu-desktop" "dnsmasq" "krdc" )
+             de_pkgs+=( "plasma-desktop" "sddm" "konsole" "pipewire-alsa" "pipewire-pulse" "alsa-utils" "dolphin" "ark" "spectacle" "kate" "flatpak" "discover" "firefox" "plasma-nm" "gwenview" "kcalc" "kscreen" "partitionmanager" "p7zip" "nvidia" "plasma-pa" "bluedevil" "obs-studio" "spotify-launcher" "sddm-kcm" "kdenlive" "kdeconnect" "kwalletmanager" "kfind" "isoimagewriter" "kmail" "calindori" "plasma-browser-integration" "ntfs-3g" "cups" "system-config-printer" "print-manager" "krdp" "deluge-gtk" "thefuck" "git-lfs" "virt-manager" "openssh" "nmap" "traceroute" "qemu-desktop" "dnsmasq" "krdc" )
              ENABLE_DM="sddm"
              ;;
     esac
