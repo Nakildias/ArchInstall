@@ -769,6 +769,11 @@ check_status_chroot "Generating locales"
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
 success "Locale configured."
 
+info "Creating vconsole.conf..."
+echo "KEYMAP=us" > /etc/vconsole.conf
+check_status_chroot "Creating /etc/vconsole.conf"
+success "vconsole.conf created."
+
 info "Setting hostname to '\${HOSTNAME}'..."
 echo "\${HOSTNAME}" > /etc/hostname
 # Configure /etc/hosts
