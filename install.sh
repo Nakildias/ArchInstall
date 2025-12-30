@@ -13,7 +13,7 @@ INSTALL_NVIDIA="false"
 # --- Helper Functions ---
 
 check_dependencies() {
-    local dependencies=("curl" "lsblk" "sgdisk" "mkfs.ext4" "mkfs.fat" "mkswap" "wipefs" "mount" "umount" "pacstrap" "genfstab" "arch-chroot" "sed" "grep" "awk" "cryptsetup")
+    local dependencies=("curl" "lsblk" "sgdisk" "mkfs.ext4" "mkfs.fat" "mkswap" "wipefs" "mount" "umount" "pacstrap" "genfstab" "arch-chroot" "sed" "grep" "awk" "cryptsetup" "dmsetup")
     local missing_deps=()
 
     for dep in "${dependencies[@]}"; do
@@ -228,6 +228,41 @@ cleanup() {
 main() {
     # Initial setup
     setup_environment
+
+    # --- MODIFICATION START: Load Multi-Profile Config ---
+    USE_CONFIG="false"
+    CONFIG_DIR="./config"
+
+    # Check if config directory exists and has .conf files
+    if [ -d "$CONFIG_DIR" ] && compgen -G "${CONFIG_DIR}/*.conf" > /dev/null; then
+        echo -e "${C_CYAN}Found configuration profiles in ${CONFIG_DIR}:${C_OFF}"
+
+        # Create an array of config files
+        mapfile -t config_files < <(ls "${CONFIG_DIR}"/*.conf)
+
+        # Add an option for "None (Interactive Mode)"
+        options=("${config_files[@]}" "None (Interactive Mode)")
+
+        PS3="Select a profile to load (Enter ID): "
+        select config_choice in "${options[@]}"; do
+            if [[ "$config_choice" == "None (Interactive Mode)" ]]; then
+                 info "Proceeding with interactive mode (No config loaded)."
+                 break
+            elif [[ -n "$config_choice" ]]; then
+                 CONFIG_FILE="$config_choice"
+                 info "Loading configuration from: ${CONFIG_FILE}"
+                 source "$CONFIG_FILE"
+                 USE_CONFIG="true"
+                 break
+            else
+                 echo "Invalid selection. Please try again."
+            fi
+        done
+    else
+        echo "No configuration profiles found in ${CONFIG_DIR}. Proceeding interactively."
+    fi
+    # --- MODIFICATION END ---
+
     check_dependencies
 
     # Pre-installation checks
@@ -235,20 +270,20 @@ main() {
     check_internet
 
     # User configuration gathering
-    select_disk
-    configure_partitioning        # Determines PART_PREFIX, gets sizes
-    configure_hostname_user
-    select_timezone
-    select_kernel
-    select_bootloader
-    select_gpu_driver
-    select_desktop_environment
-    select_filesystem
-    select_swap_choice
-    ask_encryption
-    select_optional_packages      # Sets INSTALL_STEAM and ENABLE_MULTILIB flags
-    ask_kexec_preference
-    select_mirror_preference      # Ask for local mirror preference
+    select_disk             # KEEPS INTERACTIVE (As requested)
+    configure_partitioning  # MODIFIED (Uses config if present)
+    configure_hostname_user # MODIFIED (Hostname from config, Users interactive)
+    select_timezone         # MODIFIED
+    select_kernel           # MODIFIED
+    select_bootloader       # MODIFIED
+    select_gpu_driver       # MODIFIED
+    select_desktop_environment # MODIFIED
+    select_filesystem       # MODIFIED
+    select_swap_choice      # MODIFIED
+    ask_encryption          # MODIFIED (Choice from config, Password interactive)
+    select_optional_packages # MODIFIED
+    ask_kexec_preference    # MODIFIED
+    select_mirror_preference # MODIFIED
     show_summary
 
     # Perform installation steps
@@ -264,6 +299,27 @@ main() {
 }
 
 # --- Function Definitions ---
+
+cleanup_disk_state() {
+    local disk="$1"
+    info "Performing aggressive disk cleanup on ${disk}..."
+
+    # 1. Turn off all swap (to release any swap partitions on this disk)
+    swapoff -a &>/dev/null || true
+
+    # 2. Force close any cryptsetup containers (e.g. leftovers from failed installs)
+    # We attempt common names.
+    cryptsetup close cryptroot &>/dev/null || true
+
+    # 3. Aggressive dmsetup remove to clear device mapper targets
+    # This clears stuck mappings that prevent wiping
+    dmsetup remove_all --force &>/dev/null || true
+
+    # 4. Wipefs again just to be sure
+    wipefs --all --force "${disk}" &>/dev/null || true
+
+    success "Disk cleanup complete."
+}
 
 setup_environment() {
     # Ensure script is run as root
@@ -363,6 +419,17 @@ select_disk() {
 
 select_swap_choice() {
     info "Swap Configuration..."
+
+    if [[ "$USE_CONFIG" == "true" && -n "$SWAP_TYPE" ]]; then
+        info "Using Swap Type from config: $SWAP_TYPE"
+
+        # If partition, check size too
+        if [[ "$SWAP_TYPE" == "Partition" && -n "$SWAP_PART_SIZE" ]]; then
+             info "Using Swap Partition Size from config: $SWAP_PART_SIZE"
+        fi
+        return
+    fi
+
     # Define options with Pros/Cons
     swap_options=(
         "ZRAM      | RAM Compression | Pros: Fastest performance, saves SSD life | Cons: No Hibernation"
@@ -416,6 +483,12 @@ select_swap_choice() {
 
 select_filesystem() {
     info "Selecting Filesystem..."
+
+    if [[ "$USE_CONFIG" == "true" && -n "$SELECTED_FS" ]]; then
+        info "Using Filesystem from config: $SELECTED_FS"
+        return
+    fi
+
     # Define options with Pros/Cons
     filesystems=(
         "ext4  | The Standard | Pros: Rock solid, very stable | Cons: No snapshots"
@@ -456,6 +529,20 @@ select_filesystem() {
 
 ask_encryption() {
     info "Disk Encryption Setup"
+
+    # MODIFIED: Check config for enablement choice
+    if [[ "$USE_CONFIG" == "true" ]]; then
+        if [[ "$ENABLE_ENCRYPTION" == "true" ]]; then
+             info "Encryption enabled via config."
+             get_password "Disk Encryption (LUKS)" "LUKS_PASSWORD"
+             return
+        else
+             info "Encryption disabled via config."
+             LUKS_PASSWORD=""
+             return
+        fi
+    fi
+
     ENABLE_ENCRYPTION="false"
     LUKS_PASSWORD=""
 
@@ -474,27 +561,33 @@ ask_encryption() {
 configure_partitioning() {
     info "Configuring partition layout sizes."
 
-    # Boot Partition Size
-    while true; do
-        prompt "Enter Boot Partition size (e.g., 550M, 1G) [${MIN_BOOT_SIZE_MB}M minimum, recommended 550M+]: " BOOT_SIZE_INPUT
-        BOOT_SIZE_INPUT=${BOOT_SIZE_INPUT:-550M} # Default if empty
-        if [[ "$BOOT_SIZE_INPUT" =~ ^[0-9]+[MG]$ ]]; then
-            local size_num=$(echo "$BOOT_SIZE_INPUT" | sed 's/[MG]$//')
-            local size_unit=$(echo "$BOOT_SIZE_INPUT" | grep -o '[MG]$')
-            local size_mb=$size_num
-            [[ "$size_unit" == "G" ]] && size_mb=$((size_num * 1024))
+    # MODIFIED: Check config for boot size
+    if [[ "$USE_CONFIG" == "true" && -n "$BOOT_PART_SIZE" ]]; then
+         BOOT_PART_SIZE=$BOOT_PART_SIZE
+         info "Using Boot Partition size from config: ${BOOT_PART_SIZE}"
+    else
+        # Boot Partition Size
+        while true; do
+            prompt "Enter Boot Partition size (e.g., 550M, 1G) [${MIN_BOOT_SIZE_MB}M minimum, recommended 550M+]: " BOOT_SIZE_INPUT
+            BOOT_SIZE_INPUT=${BOOT_SIZE_INPUT:-550M} # Default if empty
+            if [[ "$BOOT_SIZE_INPUT" =~ ^[0-9]+[MG]$ ]]; then
+                local size_num=$(echo "$BOOT_SIZE_INPUT" | sed 's/[MG]$//')
+                local size_unit=$(echo "$BOOT_SIZE_INPUT" | grep -o '[MG]$')
+                local size_mb=$size_num
+                [[ "$size_unit" == "G" ]] && size_mb=$((size_num * 1024))
 
-            if (( size_mb >= MIN_BOOT_SIZE_MB )); then
-                BOOT_PART_SIZE=$BOOT_SIZE_INPUT
-                info "Boot partition size set to: ${BOOT_PART_SIZE}"
-                break
+                if (( size_mb >= MIN_BOOT_SIZE_MB )); then
+                    BOOT_PART_SIZE=$BOOT_SIZE_INPUT
+                    info "Boot partition size set to: ${BOOT_PART_SIZE}"
+                    break
+                else
+                    error "Boot size must be at least ${MIN_BOOT_SIZE_MB}M."
+                fi
             else
-                error "Boot size must be at least ${MIN_BOOT_SIZE_MB}M."
+                error "Invalid format. Use number followed by M or G (e.g., 550M, 1G)."
             fi
-        else
-            error "Invalid format. Use number followed by M or G (e.g., 550M, 1G)."
-        fi
-    done
+        done
+    fi
 
     # Determine Partition Naming Convention (e.g., /dev/sda1 vs /dev/nvme0n1p1)
     # TARGET_DISK already includes /dev/ prefix (e.g., /dev/sda, /dev/nvme0n1)
@@ -511,15 +604,21 @@ configure_partitioning() {
 
 configure_hostname_user() {
     info "Configuring system identity..."
-    while true; do
-        prompt "Enter hostname (e.g., arch-pc): " HOSTNAME
-        # Strict validation: alphanumeric and hyphens only, lowercase recommended
-        if [[ "$HOSTNAME" =~ ^[a-z0-9-]+$ ]]; then
-            break
-        else
-            error "Hostname invalid. Use lowercase letters, numbers, and hyphens only."
-        fi
-    done
+
+    # MODIFIED: Skip hostname prompt if configured
+    if [[ "$USE_CONFIG" == "true" && -n "$HOSTNAME" ]]; then
+        info "Using hostname from config: ${HOSTNAME}"
+    else
+        while true; do
+            prompt "Enter hostname (e.g., arch-pc): " HOSTNAME
+            # Strict validation: alphanumeric and hyphens only, lowercase recommended
+            if [[ "$HOSTNAME" =~ ^[a-z0-9-]+$ ]]; then
+                break
+            else
+                error "Hostname invalid. Use lowercase letters, numbers, and hyphens only."
+            fi
+        done
+    fi
 
     # --- Root Account Configuration ---
     ENABLE_ROOT_ACCOUNT=false
@@ -588,6 +687,12 @@ configure_hostname_user() {
 
 select_kernel() {
     info "Selecting Kernel..."
+
+    if [[ "$USE_CONFIG" == "true" && -n "$SELECTED_KERNEL" ]]; then
+        info "Using Kernel from config: $SELECTED_KERNEL"
+        return
+    fi
+
     kernels=("linux" "linux-lts" "linux-zen")
     echo "Available kernels:"
     select kernel_choice in "${kernels[@]}"; do
@@ -610,6 +715,11 @@ select_bootloader() {
     fi
 
     info "Selecting Bootloader..."
+
+    if [[ "$USE_CONFIG" == "true" && -n "$SELECTED_BOOTLOADER" ]]; then
+        info "Using Bootloader from config: $SELECTED_BOOTLOADER"
+        return
+    fi
 
     # 2. Define options with descriptions as requested
     bootloaders=(
@@ -654,6 +764,40 @@ select_bootloader() {
 
 select_desktop_environment() {
     info "Selecting Desktop Environment or Server..."
+
+    # Initialize to empty string to prevent unbound variable error (set -u)
+    AUTO_LOGIN_USER=""
+
+    # MODIFIED: Map string from config to index
+    if [[ "$USE_CONFIG" == "true" && -n "$SELECTED_DE_NAME" ]]; then
+        case "${SELECTED_DE_NAME,,}" in # Convert to lowercase for matching
+            server*) SELECTED_DE_INDEX=0 ;;
+            kde*)    SELECTED_DE_INDEX=1 ;;
+            gnome*)  SELECTED_DE_INDEX=2 ;;
+            xfce*)   SELECTED_DE_INDEX=3 ;;
+            lxqt*)   SELECTED_DE_INDEX=4 ;;
+            mate*)   SELECTED_DE_INDEX=5 ;;
+            nakildias*) SELECTED_DE_INDEX=6 ;;
+            *)       SELECTED_DE_INDEX="" ;; # Invalid, force prompt
+        esac
+
+        if [[ -n "$SELECTED_DE_INDEX" ]]; then
+            info "Using Desktop Environment from config: ${SELECTED_DE_NAME} (Index: ${SELECTED_DE_INDEX})"
+
+            # Handle Auto-Login from Config
+            if [[ "$ENABLE_AUTO_LOGIN" == "true" && "$SELECTED_DE_INDEX" -ne 0 ]]; then
+                # We can't set AUTO_LOGIN_USER here because users might not be created yet
+                # (User creation loop is interactive).
+                # Logic: If config says auto-login, we assume the FIRST user created.
+                if [ ${#USER_NAMES[@]} -gt 0 ]; then
+                    AUTO_LOGIN_USER="${USER_NAMES[0]}"
+                    info "Auto-login configured for first user: ${AUTO_LOGIN_USER}"
+                fi
+            fi
+            return
+        fi
+    fi
+
     desktops=(
         "Server (No GUI) | Ultra-Light | Pros: Max speed, secure | Cons: No interface"
         "KDE Plasma (Modern) | Heavy | Pros: Ultimate customization | Cons: Complex settings"
@@ -717,22 +861,34 @@ select_desktop_environment() {
 select_gpu_driver() {
     info "GPU Driver Selection..."
 
-    # Simple detection
+    # MODIFIED: Automatic Detection ONLY (User requested automation override)
+    # We ignore config values for this specific function to ensure hardware match.
+
     if lspci | grep -i "NVIDIA" >/dev/null; then
-        warn "NVIDIA GPU detected."
-        if confirm "Install Proprietary NVIDIA Drivers? (Recommended for gaming)"; then
-            INSTALL_NVIDIA="true"
-        else
-            INSTALL_NVIDIA="false"
-        fi
+        warn "NVIDIA GPU detected. Enabling proprietary drivers automatically."
+        INSTALL_NVIDIA="true"
     else
-        INSTALL_NVIDIA="false"
         info "No NVIDIA GPU detected (or using AMD/Intel). Standard drivers will be used."
+        INSTALL_NVIDIA="false"
     fi
 }
 
 select_optional_packages() {
     info "Optional Packages Selection..."
+
+    if [[ "$USE_CONFIG" == "true" ]]; then
+        # Map Steam/Discord logic
+        INSTALL_DISCORD="$INSTALL_STEAM"
+        ENABLE_MULTILIB="$INSTALL_STEAM"
+
+        info "Using Optional Packages from config:"
+        echo " - Steam/Discord: $INSTALL_STEAM"
+        echo " - UFW: $INSTALL_UFW"
+        echo " - Yay: $INSTALL_YAY"
+        echo " - Zsh: $INSTALL_ZSH"
+        return
+    fi
+
     INSTALL_STEAM=false
     INSTALL_DISCORD=false
     ENABLE_MULTILIB=false
@@ -777,6 +933,11 @@ select_optional_packages() {
 
 ask_kexec_preference() {
     info "Experimental Boot Option"
+
+    if [[ "$USE_CONFIG" == "true" && -n "$ENABLE_KEXEC" ]]; then
+         info "Using Kexec setting from config: $ENABLE_KEXEC"
+         return
+    fi
     ENABLE_KEXEC="false"
 
     echo "This script supports 'kexec', which allows you to boot directly into your new"
@@ -793,6 +954,14 @@ ask_kexec_preference() {
 
 select_mirror_preference() {
     info "Mirror Configuration..."
+
+    if [[ "$USE_CONFIG" == "true" ]]; then
+        if [[ "$USE_LOCAL_MIRROR" == "true" && -n "$LOCAL_MIRROR_URL" ]]; then
+             info "Using Local Mirror from config: $LOCAL_MIRROR_URL"
+             return
+        fi
+    fi
+
     USE_LOCAL_MIRROR="false"
     LOCAL_MIRROR_URL=""
     if confirm "Use local mirror? (e.g. for caching servers)"; then
@@ -926,8 +1095,12 @@ partition_and_format() {
 
     local BIOS_BOOT_PARTITION="${PART_PREFIX}${BIOS_BOOT_PART_NUM}"
 
-    # --- Wiping and Partitioning (Same as before) ---
+    # --- Wiping and Partitioning ---
     info "Wiping and partitioning ${TARGET_DISK}..."
+
+    # AGGRESSIVE CLEANUP for re-installations
+    cleanup_disk_state "${TARGET_DISK}"
+
     wipefs --all --force "${TARGET_DISK}" >/dev/null 2>&1 || true
     sgdisk --zap-all "${TARGET_DISK}"
 
@@ -999,6 +1172,12 @@ partition_and_format() {
 }
 
 select_timezone() {
+    # MODIFIED: Check config
+    if [[ "$USE_CONFIG" == "true" && -n "$DEFAULT_REGION" && -n "$DEFAULT_CITY" ]]; then
+        info "Using Timezone from config: ${DEFAULT_REGION}/${DEFAULT_CITY}"
+        return
+    fi
+
     info "Attempting to detect your timezone automatically..."
 
     # 1. Try to get the timezone string (e.g., America/Toronto)

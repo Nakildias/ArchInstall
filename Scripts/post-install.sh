@@ -250,9 +250,14 @@ main() {
     info_msg "Here are the next steps:"
     echo "  1. ${YELLOW}IMPORTANT: Your ~/.zshrc file has been replaced with your specified layout.${NC}"
     echo "  2. Open your terminal's settings and change the font to 'FiraCode Nerd Font'."
-    echo "  3. Log out and log back in to start your new Zsh environment."
-    echo "  4. On first launch, run ${YELLOW}p10k configure${NC} to set up your Powerlevel10k prompt."
+    echo "  3. Log out and log back in to start your new Zsh environment and configure p10k."
     echo
+
+    if ask_user "Do you want to log out now to complete the setup?"; then
+        info_msg "Logging out..."
+        # Try a few methods to log out the user
+        pkill -KILL -u "$TARGET_USER" || killall -u "$TARGET_USER" || echo "Please log out manually."
+    fi
 }
 
 main
