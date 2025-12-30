@@ -8,6 +8,8 @@ This script transforms a fresh Arch ISO into a fully configured, performance-opt
 
 *   **Hybrid Boot Support**: Automatically detects UEFI or Legacy BIOS. Uses GPT partitioning for both.
 *   **Smart Bootloader Selection**: Choose between GRUB or systemd-boot (UEFI only).
+*   **Full Disk Encryption**: Secure your system with LUKS encryption support.
+*   **Linear Installation**: A guided, linear workflow ensures you never miss a critical configuration step.
 *   **Instant Boot (Kexec)**: Experimental feature to boot directly into your new OS without a hardware reboot.
 *   **Desktop Environment Profiles**:
     *   KDE Plasma 6, GNOME, XFCE, MATE, LXQt.
@@ -16,8 +18,9 @@ This script transforms a fresh Arch ISO into a fully configured, performance-opt
 *   **Performance Optimized**:
     *   Multi-core makepkg configuration.
     *   Parallel Pacman downloads (5x speed).
+    *   **Automatic Timezone**: Detects and applies your correct timezone automatically.
     *   Automatic fastest mirror selection via Reflector.
-*   **Gaming & Dev Ready**: Optional Steam/Discord packs and yay-bin (AUR helper) pre-installed.
+*   **Gaming & Dev Ready**: Optional Steam/Discord packs and **Integrated Yay Installer** (AUR helper) for effortless package management.
 
 ## ⚠️ Disclaimer ⚠️
 
