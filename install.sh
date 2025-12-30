@@ -1390,6 +1390,7 @@ install_base_system() {
                 "gnome" "gdm" "gnome-terminal" "nautilus"
                 "gnome-text-editor" "gnome-control-center" "gnome-software"
                 "eog" "file-roller" "gnome-tweaks"
+                "gvfs-smb" "gvfs-mtp" "gvfs-afc" "gvfs-nfs" "gvfs-gphoto2"
             )
             ;;
         3) # XFCE
@@ -1398,8 +1399,10 @@ install_base_system() {
             de_pkgs+=(
                 "${common_gui_pkgs[@]}"
                 "xfce4" "xfce4-goodies" "lightdm" "lightdm-gtk-greeter"
-                "xfce4-terminal" "gvfs" "gvfs-smb" "thunar" "mousepad"
-                "ristretto" "file-roller" "network-manager-applet"
+                "xfce4-terminal" "thunar" "mousepad" "ristretto" "file-roller"
+                "network-manager-applet"
+                "gvfs" "gvfs-smb" "gvfs-mtp" "gvfs-afc" "gvfs-nfs" "gvfs-gphoto2"
+                "blueman" "pavucontrol" "xdg-user-dirs"
             )
             ;;
         4) # LXQt
@@ -1409,6 +1412,8 @@ install_base_system() {
                 "${common_gui_pkgs[@]}"
                 "lxqt" "sddm" "qterminal" "pcmanfm-qt" "featherpad"
                 "lximage-qt" "ark" "network-manager-applet"
+                "openbox" "obconf-qt" "breeze-icons" "lxqt-themes"
+                "gvfs" "gvfs-smb" "gvfs-mtp" "gvfs-afc" "gvfs-nfs" "gvfs-gphoto2"
             )
             ;;
         5) # MATE
@@ -1419,6 +1424,8 @@ install_base_system() {
                 "mate" "mate-extra" "lightdm" "lightdm-gtk-greeter"
                 "mate-terminal" "caja" "pluma" "eom" "engrampa"
                 "network-manager-applet"
+                "gvfs" "gvfs-smb" "gvfs-mtp" "gvfs-afc" "gvfs-nfs" "gvfs-gphoto2"
+                "blueman" "pavucontrol" "xdg-user-dirs"
             )
             ;;
         6) # KDE Plasma (Nakildias Profile)
@@ -1810,21 +1817,39 @@ if [[ -n "\${ENABLE_DM}" ]]; then
 
         case "\${ENABLE_DM}" in
             "sddm")
-                # SDDM needs the EXACT session filename (e.g., "plasma" not "plasma-desktop")
-                # We dynamically find the first available session file to guarantee it works.
+                # SDDM needs the EXACT session filename.
 
-                # 1. Try Wayland sessions first (Modern standard)
-                target_session=\$(find /usr/share/wayland-sessions -name "*.desktop" 2>/dev/null | head -n 1 | xargs -r basename -s .desktop)
+                target_session=""
 
-                # 2. If no Wayland, try X11 sessions (Fallback/XFCE/Mate)
-                if [[ -z "\$target_session" ]]; then
-                    target_session=\$(find /usr/share/xsessions -name "*.desktop" 2>/dev/null | head -n 1 | xargs -r basename -s .desktop)
+                # --- PRIORITY CHECK: Look for known DEs explicitly first ---
+                # This prevents picking "openbox.desktop" by mistake when installing LXQt.
+                if [ -f /usr/share/xsessions/lxqt.desktop ]; then
+                    target_session="lxqt"
+                elif [ -f /usr/share/wayland-sessions/plasma.desktop ]; then
+                    target_session="plasma"
+                elif [ -f /usr/share/xsessions/plasma.desktop ]; then
+                    target_session="plasma"
                 fi
 
-                # 3. Fallback hardcoded defaults if detection fails completely
+                # --- FALLBACK CHECK: Blind search if nothing above was found ---
                 if [[ -z "\$target_session" ]]; then
-                    if pacman -Qq plasma-workspace >/dev/null 2>&1; then target_session="plasma"; fi
-                    if pacman -Qq lxqt-session >/dev/null 2>&1; then target_session="lxqt"; fi
+                    # Safe Mode: Temporarily disable strict error checking for the search
+                    set +e
+                    set +o pipefail
+
+                    # 1. Try Wayland
+                    if [ -d /usr/share/wayland-sessions ]; then
+                        target_session=\$(find /usr/share/wayland-sessions -name "*.desktop" 2>/dev/null | head -n 1 | xargs -r basename -s .desktop)
+                    fi
+
+                    # 2. Try X11
+                    if [[ -z "\$target_session" ]] && [ -d /usr/share/xsessions ]; then
+                        target_session=\$(find /usr/share/xsessions -name "*.desktop" 2>/dev/null | head -n 1 | xargs -r basename -s .desktop)
+                    fi
+
+                    # Re-enable strict checking
+                    set -e
+                    set -o pipefail
                 fi
 
                 info "Detected SDDM Session: \$target_session"
@@ -1850,8 +1875,29 @@ if [[ -n "\${ENABLE_DM}" ]]; then
                 ;;
 
             "lightdm")
-                # XFCE/MATE (LightDM)
-                sed -i "s/^#autologin-user=.*/autologin-user=\${AUTO_LOGIN_USER}/" /etc/lightdm/lightdm.conf
+                # XFCE/MATE (LightDM) configuration
+                # FIX: Create the 'autologin' group and add the user.
+                groupadd -rf autologin
+                gpasswd -a "${AUTO_LOGIN_USER}" autologin
+
+                # FIX: Use a drop-in config file.
+                # NOTE: We use \$ (escaped) for variables calculated INSIDE the chroot.
+
+                dm_session_name=""
+                if pacman -Qq xfce4-session >/dev/null 2>&1; then dm_session_name="xfce"; fi
+                if pacman -Qq mate-session-manager >/dev/null 2>&1; then dm_session_name="mate"; fi
+
+                mkdir -p /etc/lightdm/lightdm.conf.d
+                {
+                    echo "[Seat:*]"
+                    echo "autologin-user=${AUTO_LOGIN_USER}"
+                    # We must escape the $ here so it checks the variable inside the script, not the installer
+                    if [[ -n "\$dm_session_name" ]]; then
+                        echo "autologin-session=\$dm_session_name"
+                    fi
+                } > /etc/lightdm/lightdm.conf.d/autologin.conf
+
+                success "Configured LightDM Autologin for user: ${AUTO_LOGIN_USER}"
                 ;;
         esac
         success "Auto-login configured for \${ENABLE_DM} (User: \${AUTO_LOGIN_USER})."
