@@ -112,7 +112,7 @@ get_password() {
         if [[ "$pass_val" == "$pass_confirm" ]]; then
             success "Password confirmed."
             # Return value by reference (eval) or just echo?
-            # Eval is risky, but common in bash. 
+            # Eval is risky, but common in bash.
             # Better: export the variable or use printf -v (bash 3.1+)
             printf -v "$config_var_name" "%s" "$pass_val"
             break
@@ -557,12 +557,12 @@ configure_hostname_user() {
                         break
                     fi
                 done
-                
+
                 if [[ "$is_dup" == "true" ]]; then
                     error "Username '$CURRENT_USER' already added."
                     continue
                 fi
-                
+
                 info "Username set to: ${CURRENT_USER}"
                 break
             else
@@ -571,7 +571,7 @@ configure_hostname_user() {
         done
 
         get_password "user '${CURRENT_USER}'" "CURRENT_PASS"
-        
+
         local use_sudo="false"
         if confirm "Grant sudo rights (wheel group) to '${CURRENT_USER}'?"; then
             use_sudo="true"
@@ -581,7 +581,7 @@ configure_hostname_user() {
         USER_NAMES+=("$CURRENT_USER")
         USER_PASSWORDS+=("$CURRENT_PASS")
         USER_SUDO+=("$use_sudo")
-        
+
         success "User '${CURRENT_USER}' added to configuration."
     done
 }
@@ -735,7 +735,7 @@ select_optional_packages() {
     info "Optional Packages Selection..."
     INSTALL_STEAM=false
     INSTALL_DISCORD=false
-    ENABLE_MULTILIB=false 
+    ENABLE_MULTILIB=false
 
     # Check for Gaming Essentials (Steam + Discord + Multilib)
     if confirm "Install Gaming Essentials? (Steam, Discord, and Multilib support)"; then
@@ -858,7 +858,7 @@ configure_mirrors() {
     # Automatically enable parallel downloads and color in pacman.conf
     PARALLEL_DL_COUNT=5
     info "Automatically enabling color and setting parallel downloads to ${PARALLEL_DL_COUNT}."
-    
+
     # Use robust sed commands to uncomment or add lines if missing
     sed -i -E \
         -e 's/^[[:space:]]*#[[:space:]]*(ParallelDownloads).*/\1 = '"$PARALLEL_DL_COUNT"'/' \
@@ -999,33 +999,39 @@ partition_and_format() {
 }
 
 select_timezone() {
-    info "Timezone Selection"
+    info "Attempting to detect your timezone automatically..."
 
-    # Common regions to keep the list manageable
+    # 1. Try to get the timezone string (e.g., America/Toronto)
+    AUTO_TZ=$(curl -fsSL --connect-timeout 5 https://ipinfo.io/timezone)
+
+    if [[ -n "$AUTO_TZ" && "$AUTO_TZ" == *"/"* ]]; then
+        DETECTED_REGION="${AUTO_TZ%/*}"
+        DETECTED_CITY="${AUTO_TZ#*/}"
+
+        # 2. Ask for confirmation with the explicit [y/N]
+        if confirm "I detected your timezone as ${DETECTED_REGION}/${DETECTED_CITY}. Is this correct?"; then
+            DEFAULT_REGION="$DETECTED_REGION"
+            DEFAULT_CITY="$DETECTED_CITY"
+            success "Timezone set to ${DEFAULT_REGION}/${DEFAULT_CITY}"
+            return 0
+        fi
+    fi
+
+    # 3. Fallback to manual selection
+    warn "Automatic detection skipped. Manual selection required."
+
     regions=("America" "Europe" "Asia" "Australia" "Africa")
-
     echo "Select your Region:"
     select region in "${regions[@]}"; do
         if [[ -n "$region" ]]; then
-            TARGET_REGION="$region"
+            DEFAULT_REGION="$region"
             break
         fi
     done
 
-    # Ask for city manually to avoid listing 500 cities
-    read -p "$(echo -e "${C_PURPLE}${C_BOLD}[PROMPT]${C_OFF} Enter your City (e.g., New_York, London, Berlin): ")" TARGET_CITY
-
-    # Validate roughly
-    if [[ -f "/usr/share/zoneinfo/${TARGET_REGION}/${TARGET_CITY}" ]]; then
-        DEFAULT_REGION="$TARGET_REGION"
-        DEFAULT_CITY="$TARGET_CITY"
-        success "Timezone set to ${DEFAULT_REGION}/${DEFAULT_CITY}"
-    else
-        warn "Timezone /usr/share/zoneinfo/${TARGET_REGION}/${TARGET_CITY} not found."
-        warn "Defaulting to UTC."
-        DEFAULT_REGION="Etc"
-        DEFAULT_CITY="UTC"
-    fi
+    prompt "Enter your City (e.g., New_York, London, Berlin): " USER_CITY
+    # Replace spaces with underscores for the filesystem path
+    DEFAULT_CITY=$(echo "$USER_CITY" | sed 's/ /_/g')
 }
 
 mount_filesystems() {
@@ -1336,7 +1342,7 @@ configure_installed_system() {
 
     # Create chroot configuration script using Split Heredoc
     info "Creating chroot configuration script..."
-    
+
     # --- PART 1: Header and Basic Setup ---
     cat <<CHROOT_HEADER > /mnt/configure_chroot.sh
 #!/bin/bash
@@ -1426,7 +1432,7 @@ CHROOT_HEADER
     {
         echo ""
         echo "# --- User Configuration ---"
-        
+
         # Root Account
         if [ "$ENABLE_ROOT_ACCOUNT" == "true" ]; then
             echo "info 'Setting root password...'"
@@ -1444,19 +1450,19 @@ CHROOT_HEADER
             local u="${USER_NAMES[$i]}"
             local p="${USER_PASSWORDS[$i]}"
             local s="${USER_SUDO[$i]}"
-            
+
             echo "info \"Creating user '$u'...\""
             echo "useradd -m -s \${USER_SHELL} '$u'"
             echo "check_status_chroot 'Creating user $u'"
             echo "echo '$u:$p' | chpasswd"
             echo "check_status_chroot 'Setting password for $u'"
-            
+
             if [ "$s" == "true" ]; then
                 echo "usermod -aG wheel '$u'"
                 echo "check_status_chroot 'Adding $u to wheel group'"
             fi
             echo "success \"User '$u' created.\""
-            
+
             # If Zsh is installed, configure auto-run of post-install.sh
             if [ "$INSTALL_ZSH" == "true" ]; then
                 echo "info \"Configuring .zshrc for '$u' to suggest post-install.sh...\""
@@ -1485,7 +1491,7 @@ EOF_ZSHRC"
                 echo "chown '$u:$u' /home/$u/.zshrc"
             fi
         done
-        
+
         # Root Zsh Configuration (if enabled)
         if [ "$INSTALL_ZSH" == "true" ] && [ "$ENABLE_ROOT_ACCOUNT" == "true" ]; then
              echo "info \"Configuring .zshrc for root...\""
@@ -1510,7 +1516,7 @@ if [ ! -f \"\$HOME/.zsh_configured\" ]; then
 fi
 EOF_ZSHRC"
         fi
-        
+
         echo ""
     } >> /mnt/configure_chroot.sh
 
@@ -1997,13 +2003,13 @@ final_steps() {
         HOURS=$((DURATION / 3600))
         MINUTES=$(( (DURATION % 3600) / 60 ))
         SECONDS=$((DURATION % 60))
-        
+
         # Build readable string
         TIME_STR=""
         [[ $HOURS -gt 0 ]] && TIME_STR+="${HOURS}h "
         [[ $MINUTES -gt 0 ]] && TIME_STR+="${MINUTES}m "
         TIME_STR+="${SECONDS}s"
-        
+
         echo " Installation took: ${TIME_STR}"
     fi
 
