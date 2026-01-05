@@ -2,6 +2,8 @@
 
 A fast, automated, and feature-rich Arch Linux installer for x86_64 systems. Seamlessly supports both UEFI and Legacy BIOS boot modes.
 
+# Major update coming soon need to test it throughly then it will be available here!
+
 This script transforms a fresh Arch ISO into a fully configured, performance-optimized workstation or server in minutes. It handles the manual heavy lifting—partitioning, mounting, and base installation—along side complex configurations like driver detection, auto-login, and AUR setup.
 
 ## ✨ Key Features ✨
