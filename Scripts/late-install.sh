@@ -175,15 +175,20 @@ if [ -f /etc/tmux.conf ]; then
 fi
 
 cat << 'EOF' > /etc/tmux.conf
-# --- CORE ---
-set -g mouse off 
-unbind -n MouseDown3Pane # Disable right-click menu
+# --- CORE SETTINGS ---
+set -g history-limit 10000
+set -g mouse off
+unbind -n MouseDown3Pane
 set -g default-terminal "xterm-256color"
+set -ag terminal-overrides ",xterm-256color:RGB"
 set -s escape-time 0
 set -g base-index 1
 setw -g pane-base-index 1
+set -g renumber-windows on
+set -g set-titles on
 
 # --- STYLE ---
+set -g status-interval 2
 set -g status-position top
 set -g status-justify left
 set -g status-style 'bg=color0 fg=color6'
@@ -191,21 +196,36 @@ set -g pane-border-style 'fg=color8'
 set -g pane-active-border-style 'fg=color6'
 
 # --- STATUS BAR ---
-set -g status-left-length 50
-set -g status-left "#[bg=color0] "
-set -g window-status-format "#[fg=color8,bg=color0] #I "
-set -g window-status-current-format "#[fg=color0,bg=color6,bold] #I #[bg=color0] "
+set -g status-left-length 60
+set -g status-left "#[fg=color6,bg=color0,bold] #S #[bg=default] "
+set -g window-status-format "#[fg=color8,bg=color0] #I: #W "
+set -g window-status-current-format "#[fg=color0,bg=color6,bold] #I: #W #[default]"
 set -g status-right-length 100
-set -g status-right '#[fg=color4,bg=color0]  #(grep "cpu " /proc/stat | awk "{usage=(\$2+\$4)*100/(\$2+\$4+\$5)} END {print usage \"%\"}") #[fg=color8]| #[fg=color3]%Y-%m-%d #[fg=color8]| #[fg=color6,bold]%H:%M '
+set -g status-right '#[fg=color4]  #(grep "cpu " /proc/stat | awk "{usage=(\$2+\$4)*100/(\$2+\$4+\$5)} END {printf \"%.0f%%\", usage}") #[fg=color8]| #[fg=color3]  #(free -m | awk "/^Mem/ {print \$3 \"MB / \" \$2 \"MB\"}") #[fg=color8]| #[fg=color6,bold] %H:%M '
 
-# --- KEYS ---
+# --- KEYBINDINGS ---
+# Split Windows (Alt+V = Vertical, Alt+H = Horizontal)
+bind -n M-v split-window -h -c "#{pane_current_path}"
+bind -n M-h split-window -v -c "#{pane_current_path}"
 bind -n M-Enter split-window -h -c "#{pane_current_path}"
-bind -n M-Space resize-pane -Z
-bind -n M-q kill-pane
+
+# Navigate Panes (Alt + Arrow)
 bind -n M-Left select-pane -L
 bind -n M-Right select-pane -R
 bind -n M-Up select-pane -U
 bind -n M-Down select-pane -D
+
+# Navigate Windows (Alt + Shift + Arrow)
+bind -n M-S-Left previous-window
+bind -n M-S-Right next-window
+
+# Window Management
+bind -n M-q kill-pane
+bind -n M-n new-window
+bind -n M-Space resize-pane -Z
+bind -n M-r source-file /etc/tmux.conf \; display "Reloaded!"
+
+# Direct Window Access (Alt + Number)
 bind -n M-1 select-window -t 1
 bind -n M-2 select-window -t 2
 bind -n M-3 select-window -t 3
@@ -215,8 +235,12 @@ bind -n M-6 select-window -t 6
 bind -n M-7 select-window -t 7
 bind -n M-8 select-window -t 8
 bind -n M-9 select-window -t 9
-bind -n M-n new-window
-bind -n M-r source-file /etc/tmux.conf \; display "Reloaded!"
+
+# Scrollback (Keyboard Only - Alt+PageUp/Down to scroll, native terminal selection works)
+bind -n M-PageUp copy-mode -u
+bind -n M-PageDown send-keys PageDown
+
+# Copy Mode with vi keys (enter with Ctrl+B then [, or Alt+PageUp)
 setw -g mode-keys vi
 EOF
 
