@@ -378,10 +378,13 @@ else
     # Stop GUI if running
     if systemctl is-active --quiet graphical.target; then
         systemctl stop graphical.target
+        # Force stop common DMs to ensure clean TTY release (Fixes Ly/SDDM issues)
+        systemctl stop ly sddm gdm lightdm lxdm 2>/dev/null
     else
         systemctl stop getty@tty1.service 2>/dev/null
     fi
     
+    sleep 1 # Wait for TTY release
     systemctl enable kmscon@tty1.service
     systemctl start kmscon@tty1.service
 fi
