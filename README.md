@@ -1,80 +1,129 @@
-# Arch Linux Installation Script v3.0 🚀
+# Arch Linux Installer v3.0
 
-A fast, automated, and feature-rich Arch Linux installer for x86_64 systems. Seamlessly supports both UEFI and Legacy BIOS boot modes.
+![Version](https://img.shields.io/badge/version-3.0-blue) ![License](https://img.shields.io/badge/license-CC0-green) ![Architecture](https://img.shields.io/badge/arch-x86__64-orange)
 
-# Major update coming soon need to test it throughly then it will be available here!
+A secure, automated, and modular Arch Linux installation system. This script provides a streamlined way to install a fully configured Arch Linux system, supporting both interactive use and configuration-file driven automation.
 
-This script transforms a fresh Arch ISO into a fully configured, performance-optimized workstation or server in minutes. It handles the manual heavy lifting—partitioning, mounting, and base installation—along side complex configurations like driver detection, auto-login, and AUR setup.
+## Quick Links
+- [Specs at a Glance](#specs-at-a-glance)
+- [Key Features](#key-features)
+- [Supported Profiles](#supported-profiles)
+- [Installation](#installation)
+- [Usage Modes](#usage-modes)
+- [Advanced Features](#advanced-features)
 
-## ✨ Key Features ✨
+## Specs at a Glance
 
-*   **Hybrid Boot Support**: Automatically detects UEFI or Legacy BIOS. Uses GPT partitioning for both.
-*   **Smart Bootloader Selection**: Choose between GRUB or systemd-boot (UEFI only).
-*   **Full Disk Encryption**: Secure your system with LUKS encryption support.
-*   **Linear Installation**: A guided, linear workflow ensures you never miss a critical configuration step.
-*   **Instant Boot (Kexec)**: Experimental feature to boot directly into your new OS without a hardware reboot.
-*   **Desktop Environment Profiles**:
-    *   KDE Plasma 6, GNOME, XFCE, MATE, LXQt.
-    *   **Server**: TTY/SSH only configuration. (Or DIY without any bloat.)
-    *   **Nakildias Custom**: Pre-tuned KDE Gaming profile with OBS, Virtualization and streaming tools.
-*   **Performance Optimized**:
-    *   Multi-core makepkg configuration.
-    *   Parallel Pacman downloads (5x speed).
-    *   **Automatic Timezone**: Detects and applies your correct timezone automatically.
-    *   Automatic fastest mirror selection via Reflector.
-*   **Gaming & Dev Ready**: Optional Steam/Discord packs and **Integrated Yay Installer** (AUR helper) for effortless package management.
+| Category | Supported Technologies |
+| :--- | :--- |
+| **Boot Mode** | UEFI (systemd-boot/GRUB), Legacy BIOS (GRUB) |
+| **Filesystems** | Ext4, XFS, Btrfs (Subvolumes: `@`, `@home`, `@snapshots`, `@var_log`) |
+| **Encryption** | LUKS Full Disk Encryption |
+| **Swap** | ZRAM (Default), Swap Partition, Swapfile |
+| **Network** | NetworkManager, iwd, ssh, automatic mirror selection |
 
-## ⚠️ Disclaimer ⚠️
+## Hardware Auto-Detection
 
-> **Data Loss Warning**: This script WILL WIPE the target disk you select. Backup your data first.
->
-> **Use at your own risk**: While tested, always verify your disk selection. This is intended for clean installations only.
+The installer automatically identifies your hardware and configures the system accordingly:
 
-## 📋 Prerequisites 📋
+*   **Microcode:** Auto-installs `intel-ucode` or `amd-ucode`.
+*   **GPU Drivers:** 
+    *   **NVIDIA:** Proprietary drivers.
+    *   **AMD/Intel:** Open-source Mesa drivers.
+    *   **VMware:** SVGA drivers.
+    *   **QEMU:** Virtio drivers.
+*   **Virtualization Tools:** Automatically installs guest agents for **VMware** (`open-vm-tools`) and **QEMU/KVM** (`qemu-guest-agent`, `spice-vdagent`).
 
-*   **x86_64 System**: A 64-bit compatible computer.
-*   **Arch Linux ISO**: Boot from a recent official Arch Linux USB.
-*   **Internet**: Ensure you have an active connection (via Ethernet or `iwctl` for Wi-Fi).
+## Key Features
 
-## ⚙️ Installation Guide ⚙️
+### 🛡️ Security First
+*   **Secure Password Handling:** Passwords passed via file descriptors (pipes), scrubbing them from process lists.
+*   **Safe Sudoers Management:** Uses temporary drop-in files for installation privileges, cleaned up automatically to prevent race conditions.
+*   **Zero-Trace Cleanup:** Securely wipes environment files containing credentials before the final boot.
+*   **Targeted Disk Operations:** Disk wiping logic is strictly scoped to the target drive.
 
-Follow these steps exactly to deploy your system.
+### ⚙️ Configuration & Customization
+*   **Network Resilience:** Robust connectivity checks with 5-minute timeouts and retries.
+*   **KDE Theming Engine:** Integrated `Konsave` support to apply full Plasma layouts, wallpapers, and widgets.
+*   **Locale & Input:** Full selection support for 14+ Locales and 12+ Keymaps.
+*   **TTY Ricing:** Optional high-resolution KMSCON console setup with custom themes (Nord, Dracula).
 
-### 1. Verify Internet Connection
+### 🛟 Safety & Recovery
+*   **Config Backups:** Automatically backs up existing configuration files (e.g., `.zshrc`, `tmux.conf`) before overwriting.
+*   **Repair Mode:** Standalone tool (`repair.sh`) to fix bootloaders, fstab, and kernels (Btrfs aware).
+*   **Kexec Support:** "Soft reboot" directly into the new kernel without a full hardware cycle.
 
-Before starting, ensure the Arch Live environment can reach the outside world:
+## Supported Profiles
+
+| Profile | GUI | Audio | Theming | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| **KDE Plasma** | ✅ | ✅ | ✅ | Full desktop experience with Konsave support. |
+| **Hyprland** | ✅ | ✅ | ❌ | Modern tiling compositor. |
+| **GNOME** | ✅ | ✅ | ❌ | Standard GNOME environment. |
+| **XFCE/MATE** | ✅ | ✅ | ❌ | Lightweight, traditional desktops. |
+| **LXQt** | ✅ | ✅ | ❌ | Extremely lightweight Qt environment. |
+| **Server** | ❌ | ❌ | ❌ | Headless, SSH only, minimal footprint. |
+
+## Installation
+
+### Prerequisites
+1.  **Arch Linux ISO:** Boot from recent official media.
+2.  **Internet:** Ethernet or Wi-Fi (`iwctl`).
+3.  **Root Access:** Run as root.
+
+### Quick Start
+
+Update, Clone, and Run in one go:
 
 ```bash
-ping -c 3 archlinux.org
-```
-
-### 2. Download and Run the Script
-
-Copy and paste the following commands into your terminal:
-
-```bash
-# Update package database and install Git
 pacman -Sy git --noconfirm
-
-# Clone the repository
-git clone https://github.com/Nakildias/ArchInstall
-
-# Navigate into the installer directory
-cd ArchInstall
-
-# Execute the installation script
-bash install.sh
+git clone https://github.com/Nakildias/ArchInstall && cd ArchInstall
+./install.sh
 ```
 
-### 3. Configure Your Install
+> [!WARNING]
+> **Data Loss Warning:** This software creates partitions and formats disks. It is designed to WIPE the target drive specified. Always verify your target disk selection.
 
-Once the script starts, follow the on-screen instructions. You will be prompted to:
+## Usage Modes
 
-*   Select your target drive (e.g., `/dev/sda` or `/dev/nvme0n1`).
-*   Set your hostname and user credentials.
-*   Choose your preferred Desktop Environment or Server profile.
-*   Toggle optional features like Gaming Essentials or Zsh.
+### Interactive Mode
+Simply run `./install.sh`. You will be guided through disk selection, encryption, and profile choices.
 
-## Post-Installation
+### Configuration Mode (Automated)
+Automate installations using `.conf` files found in `config/`.
 
-After the script finishes, you can choose to use the Kexec feature to jump straight into your new OS, or perform a traditional reboot. Installation logs are preserved at `/var/log/installer` for your review.
+```bash
+./install.sh --config config/my-custom-config.conf
+```
+
+**Minimal Config Example:**
+```bash
+HOSTNAME="arch-server"
+TARGET_DISK="/dev/vda"
+SELECTED_FS="btrfs"
+ENABLE_ROOT_ACCOUNT="true"
+ROOT_PASSWORD="securePassword123"
+DE_NAME="Server"
+```
+
+## Advanced Features
+
+### Repair Script
+`repair.sh` is a powerful standalone tool included in the repository.
+*   **Auto-Detect:** Btrfs subvolumes & EFI partitions.
+*   **Fixes:** Reinstall Bootloader, Regenerate fstab, Reinstall Kernel.
+
+```bash
+./repair.sh
+```
+
+### Local Mirror
+Use a local caching proxy for rapid deployments.
+*   **Config:** Set `USE_LOCAL_MIRROR="true"` and `LOCAL_MIRROR_URL="http://ip:port"`.
+
+## Project Structure
+*   `install.sh`: Entry point.
+*   `lib/`: Core logic (disk, network, chroot).
+*   `config/`: Automation profiles.
+*   `Customizers/`: DE-specific post-install scripts.
+*   `Scripts/`: Standalone utilities.

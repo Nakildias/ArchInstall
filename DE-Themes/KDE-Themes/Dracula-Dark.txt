@@ -1,0 +1,2 @@
+YAY = "full-dracula-theme-git"
+WALLPAPER = "./Dracula-Dark.png"

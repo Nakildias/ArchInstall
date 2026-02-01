@@ -1,0 +1,1 @@
+YAY = "whitesur-gtk-theme, whitesur-kde-theme"
