@@ -186,33 +186,15 @@ set -g renumber-windows on
 set -g set-titles on
 
 # --- MOUSE CONFIGURATION ---
-# Enable mouse for: clicking tabs/panes, scrolling, resizing
-set -g mouse on
-
-# ============================================================
-# IMPORTANT: Native Terminal Selection & Right-Click
-# ============================================================
-# When tmux mouse is ON, it captures all mouse events.
-# To use your terminal's native features, HOLD SHIFT:
-#   - Shift + Left-Click-Drag  = Native text selection
-#   - Shift + Right-Click      = Terminal context menu (Konsole/etc)
-#   - Shift + Middle-Click     = Paste from terminal clipboard
-# ============================================================
-
-# Completely disable tmux's copy-mode mouse selection
-# This prevents the ugly tmux selection from appearing
-unbind -T root MouseDrag1Pane
-unbind -T root MouseDragEnd1Pane
-unbind -T copy-mode MouseDrag1Pane
-unbind -T copy-mode MouseDragEnd1Pane
-unbind -T copy-mode-vi MouseDrag1Pane
-unbind -T copy-mode-vi MouseDragEnd1Pane
-
-# Disable tmux's right-click (so it doesn't consume the event)
-unbind -n MouseDown3Pane
-unbind -T root MouseDown3Pane
-unbind -T copy-mode MouseDown3Pane
-unbind -T copy-mode-vi MouseDown3Pane
+# Mouse is OFF for graphical terminal compatibility (Konsole, Alacritty, etc.)
+# This ensures native text selection and right-click menus work perfectly.
+# Use keyboard shortcuts instead:
+#   Alt+V / Alt+H         = Split vertical/horizontal
+#   Alt+Arrow             = Navigate panes
+#   Alt+Shift+Arrow       = Navigate windows
+#   Alt+PageUp/Down       = Scroll history
+#   Alt+1-9               = Switch to window N
+set -g mouse off
 
 # --- STYLE ---
 set -g status-interval 2
