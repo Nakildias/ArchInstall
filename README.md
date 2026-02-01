@@ -1,6 +1,6 @@
 # Arch Linux Installer v3.0
 
-![Version](https://img.shields.io/badge/version-3.0-blue) ![License](https://img.shields.io/badge/license-CC0-green) ![Architecture](https://img.shields.io/badge/arch-x86__64-orange)
+![Version](https://img.shields.io/badge/version-3.0-blue) ![License](https://img.shields.io/badge/license-GPLv2-green) ![Architecture](https://img.shields.io/badge/arch-x86__64-orange)
 
 A secure, automated, and modular Arch Linux installation system. This script provides a streamlined way to install a fully configured Arch Linux system, supporting both interactive use and configuration-file driven automation.
 
