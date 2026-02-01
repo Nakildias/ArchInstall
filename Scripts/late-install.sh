@@ -355,26 +355,60 @@ set bg=dark
 colorscheme habamax
 EOF
 
-# Create Toggle Scripts for convenience
-echo "[-] Creating toggle scripts (kmscon-toggle, tmux-toggle)..."
-
-cat <<'EOF_TOGGLE_KMS' > /usr/local/bin/kmscon-toggle
+cat <<'EOF_TOGGLE_KMS' > /usr/local/bin/toggle-kmscon
 #!/bin/bash
 if [ "$EUID" -ne 0 ]; then echo "Run as root."; exit 1; fi
 
 if systemctl is-active --quiet kmscon@tty1.service; then
-    echo "Disabling KMSCON (Switching to Getty)..."
-    systemctl disable --now kmscon@tty1.service
-    systemctl enable --now getty@tty1.service
-    echo "Done. Standard TTY is active."
+    echo "Disabling KMSCON... Restore GUI..."
+    systemctl stop kmscon@tty1.service
+    systemctl disable kmscon@tty1.service
+    
+    # Check if we should start GUI or Getty
+    if systemctl is-enabled graphical.target &>/dev/null; then
+        echo "Starting Graphical Interface..."
+        systemctl start graphical.target
+    else
+        echo "Starting Getty..."
+        systemctl start getty@tty1.service
+    fi
 else
-    echo "Enabling KMSCON (Switching from Getty)..."
-    systemctl disable --now getty@tty1.service
-    systemctl enable --now kmscon@tty1.service
-    echo "Done. High-Res TTY is active."
+    echo "Enabling KMSCON... Stopping GUI..."
+    
+    # Stop GUI if running
+    if systemctl is-active --quiet graphical.target; then
+        systemctl stop graphical.target
+    else
+        systemctl stop getty@tty1.service 2>/dev/null
+    fi
+    
+    systemctl enable kmscon@tty1.service
+    systemctl start kmscon@tty1.service
 fi
 EOF_TOGGLE_KMS
-chmod +x /usr/local/bin/kmscon-toggle
+chmod +x /usr/local/bin/toggle-kmscon
+
+# Symlink for the name user expected
+ln -sf /usr/local/bin/toggle-kmscon /usr/local/bin/kmscon-toggle
+
+# Create Desktop Entry (like Base-TTY.sh does)
+cat <<EOF_DESKTOP > /usr/share/applications/kmscon-toggle.desktop
+[Desktop Entry]
+Name=Toggle KMSCON Terminal
+Exec=pkexec /usr/local/bin/toggle-kmscon
+Icon=utilities-terminal
+Type=Application
+Terminal=false
+Categories=System;Utility;
+EOF_DESKTOP
+
+# Copy to current user's desktop if it exists
+CURRENT_USER=$(logname 2>/dev/null || echo $SUDO_USER)
+if [[ -n "$CURRENT_USER" && -d "/home/$CURRENT_USER/Desktop" ]]; then
+    cp /usr/share/applications/kmscon-toggle.desktop "/home/$CURRENT_USER/Desktop/"
+    chmod +x "/home/$CURRENT_USER/Desktop/kmscon-toggle.desktop"
+    chown "$CURRENT_USER:$CURRENT_USER" "/home/$CURRENT_USER/Desktop/kmscon-toggle.desktop"
+fi
 
 cat <<'EOF_TOGGLE_TMUX' > /usr/local/bin/tmux-toggle
 #!/bin/bash
