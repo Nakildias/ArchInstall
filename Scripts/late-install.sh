@@ -359,13 +359,53 @@ cat <<'EOF_TOGGLE_KMS' > /usr/local/bin/toggle-kmscon
 #!/bin/bash
 if [ "$EUID" -ne 0 ]; then echo "Run as root."; exit 1; fi
 
+# State file to remember which TTY we're using
+STATE_FILE="/var/lib/kmscon-toggle-state"
+
 # List of known display managers
 DMS="ly sddm gdm lightdm lxdm greetd"
 
+# Detect current active TTY (where DM or user is)
+detect_active_tty() {
+    local tty_num
+    
+    # Method 1: fgconsole (current foreground console)
+    tty_num=$(fgconsole 2>/dev/null)
+    if [[ "$tty_num" =~ ^[0-9]+$ ]] && [ "$tty_num" -ge 1 ] && [ "$tty_num" -le 12 ]; then
+        echo "$tty_num"
+        return
+    fi
+    
+    # Method 2: Check where Xorg/Ly is running
+    for proc in ly sddm gdm lightdm Xorg X; do
+        local pid=$(pgrep -x "$proc" | head -n1)
+        if [ -n "$pid" ]; then
+            local proc_tty=$(ps -o tty= -p "$pid" 2>/dev/null | grep -oE '[0-9]+')
+            if [ -n "$proc_tty" ]; then
+                echo "$proc_tty"
+                return
+            fi
+        fi
+    done
+    
+    # Method 3: Check /sys for active vt
+    if [ -f /sys/class/tty/tty0/active ]; then
+        tty_num=$(cat /sys/class/tty/tty0/active | grep -oE '[0-9]+')
+        if [ -n "$tty_num" ]; then
+            echo "$tty_num"
+            return
+        fi
+    fi
+    
+    # Fallback: Default to tty1
+    echo "1"
+}
+
 stop_all_dms() {
+    local target_tty="$1"
     echo "Stopping all display managers..."
     
-    # 1. Stop graphical target (canonical way)
+    # 1. Stop graphical target
     systemctl stop graphical.target 2>/dev/null
     
     # 2. Force stop each known DM service
@@ -374,7 +414,7 @@ stop_all_dms() {
         systemctl kill "$dm" 2>/dev/null
     done
     
-    # 3. Nuclear: Kill any remaining DM processes directly
+    # 3. Nuclear: Kill any remaining DM processes
     pkill -9 -x ly 2>/dev/null
     pkill -9 -x sddm 2>/dev/null
     pkill -9 -x gdm 2>/dev/null
@@ -383,21 +423,20 @@ stop_all_dms() {
     pkill -9 -x Xorg 2>/dev/null
     pkill -9 -x X 2>/dev/null
     
-    # 4. Stop getty on tty1 if running
-    systemctl stop getty@tty1.service 2>/dev/null
+    # 4. Stop getty on target TTY
+    systemctl stop "getty@tty${target_tty}.service" 2>/dev/null
     
     # 5. Wait for TTY to be released
     sleep 2
     
-    # 6. Forcefully deallocate TTY1 if still held
-    fgconsole 2>/dev/null || true
-    deallocvt 1 2>/dev/null || true
+    # 6. Forcefully deallocate target TTY
+    deallocvt "$target_tty" 2>/dev/null || true
 }
 
 start_gui() {
     echo "Starting Graphical Interface..."
     
-    # Find which DM is enabled and start it, or fall back to graphical.target
+    # Find which DM is enabled and start it
     for dm in $DMS; do
         if systemctl is-enabled "$dm" 2>/dev/null | grep -q "enabled"; then
             echo "Starting $dm..."
@@ -406,39 +445,62 @@ start_gui() {
         fi
     done
     
-    # Fallback to graphical target
+    # Fallback
     systemctl start graphical.target 2>/dev/null || systemctl start getty@tty1.service
 }
 
-if systemctl is-active --quiet kmscon@tty1.service; then
-    echo "=== Switching: KMSCON -> GUI ==="
-    systemctl stop kmscon@tty1.service
-    systemctl disable kmscon@tty1.service
+# Find any active kmscon service
+find_active_kmscon() {
+    for i in 1 2 3 4 5 6 7; do
+        if systemctl is-active --quiet "kmscon@tty${i}.service"; then
+            echo "$i"
+            return
+        fi
+    done
+    echo ""
+}
+
+# Check if KMSCON is currently active
+ACTIVE_KMSCON_TTY=$(find_active_kmscon)
+
+if [ -n "$ACTIVE_KMSCON_TTY" ]; then
+    echo "=== Switching: KMSCON (tty${ACTIVE_KMSCON_TTY}) -> GUI ==="
+    
+    systemctl stop "kmscon@tty${ACTIVE_KMSCON_TTY}.service"
+    systemctl disable "kmscon@tty${ACTIVE_KMSCON_TTY}.service"
+    
+    # Remove state file
+    rm -f "$STATE_FILE"
     
     # Check if GUI was previously available
     if systemctl list-unit-files graphical.target &>/dev/null; then
         start_gui
     else
-        echo "Starting Getty..."
-        systemctl start getty@tty1.service
+        echo "Starting Getty on tty${ACTIVE_KMSCON_TTY}..."
+        systemctl start "getty@tty${ACTIVE_KMSCON_TTY}.service"
     fi
     echo "Done."
 else
-    echo "=== Switching: GUI -> KMSCON ==="
+    # Detect which TTY to use
+    TARGET_TTY=$(detect_active_tty)
+    echo "=== Switching: GUI -> KMSCON (tty${TARGET_TTY}) ==="
+    
+    # Save state for switching back
+    echo "$TARGET_TTY" > "$STATE_FILE"
     
     # Scorched earth approach to stop everything
-    stop_all_dms
+    stop_all_dms "$TARGET_TTY"
     
-    # Enable and start KMSCON
-    systemctl enable kmscon@tty1.service
-    systemctl start kmscon@tty1.service
+    # Enable and start KMSCON on detected TTY
+    systemctl enable "kmscon@tty${TARGET_TTY}.service"
+    systemctl start "kmscon@tty${TARGET_TTY}.service"
     
     # Verify it started
     sleep 1
-    if systemctl is-active --quiet kmscon@tty1.service; then
-        echo "KMSCON is now active on TTY1."
+    if systemctl is-active --quiet "kmscon@tty${TARGET_TTY}.service"; then
+        echo "KMSCON is now active on TTY${TARGET_TTY}."
     else
-        echo "ERROR: KMSCON failed to start. Check: systemctl status kmscon@tty1"
+        echo "ERROR: KMSCON failed to start. Check: systemctl status kmscon@tty${TARGET_TTY}"
     fi
 fi
 EOF_TOGGLE_KMS
